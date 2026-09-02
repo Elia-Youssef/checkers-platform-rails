@@ -1,0 +1,49 @@
+<%#
+  One dark square. Four shapes, decided by what the engine offered:
+
+    a destination of the current selection  a form that posts that leg
+    one of your own movable pieces          a form that selects it (?selected=n)
+    any other square, match still playable  a form that clears the selection
+    finished match, or a viewer, or any
+    square that is not a continuation while
+    a jump sequence is pending              a disabled button, so clicking does nothing
+
+  Both labels are written here, on the server, so the board controller never composes a
+  sentence: it swaps aria-label between data-label-idle and data-label-target.
+%>
+<%
+  own = own_targets.present?
+  is_selected = (selection == number)
+  idle_label = square_label(number, piece)
+  target_label = "#{idle_label}, move here"
+  button_options = {
+    type: "submit",
+    class: class_names("square", "square--target" => target,
+                       "square--selected" => is_selected,
+                       "square--last-move" => tinted),
+    aria: { label: target ? target_label : idle_label },
+    data: { square: number, label_idle: idle_label, label_target: target_label }
+  }
+  button_options[:data][:legal_targets] = own_targets.join(" ") if own
+  button_options[:aria][:pressed] = is_selected.to_s if own || is_selected
+%>
+<% if target %>
+  <%= form_with url: match_moves_path(match), method: :post, class: "board__cell" do %>
+    <%= hidden_field_tag :from, selection, id: nil %>
+    <%= hidden_field_tag :to, number, id: nil %>
+    <%= tag.button(**button_options) { render "matches/square_face", piece: piece } %>
+  <% end %>
+<% elsif playable && !pending && own && !is_selected %>
+  <%= form_with url: match_path(match), method: :get, class: "board__cell" do %>
+    <%= hidden_field_tag :selected, number, id: nil %>
+    <%= tag.button(**button_options) { render "matches/square_face", piece: piece } %>
+  <% end %>
+<% elsif playable && !pending %>
+  <%= form_with url: match_path(match), method: :get, class: "board__cell" do %>
+    <%= tag.button(**button_options) { render "matches/square_face", piece: piece } %>
+  <% end %>
+<% else %>
+  <div class="board__cell">
+    <%= tag.button(**button_options, disabled: true) { render "matches/square_face", piece: piece } %>
+  </div>
+<% end %>

@@ -1,0 +1,361 @@
+/*
+ * Checkers: the match page, the board and the pieces.
+ *
+ * Drawn entirely in CSS and inline SVG from the tokens in application.css. There is no image
+ * file and no url() reference anywhere in this file (TASK-BRIEF.md section 1.8). Propshaft
+ * serves every stylesheet under app/assets/stylesheets through `stylesheet_link_tag :app` in
+ * alphabetical order, so this file loads after application.css and inherits its custom
+ * properties.
+ *
+ * The board is a square 8 by 8 grid that grows with the page up to --board-max (640 px) and
+ * stays playable at a 360 px viewport, where the match page becomes a single column.
+ */
+
+.match__heading {
+  margin-bottom: var(--space-4);
+}
+
+.match {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(15rem, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.match__aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* The board ---------------------------------------------------------------- */
+
+.board-zone {
+  width: 100%;
+  max-width: var(--board-max);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border: 6px solid var(--board-frame);
+  border-radius: var(--radius-sm);
+  background: var(--board-light);
+  overflow: hidden;
+}
+
+/* Every cell is a grid item: a form wrapping one dark square's button, or an inert light
+   square. Forms carry no styling of their own beyond being that cell. */
+.board__cell {
+  display: block;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  background: var(--board-light);
+}
+
+.board__cell--light {
+  background: var(--board-light);
+}
+
+/* The hidden form the board controller posts a leg through when JavaScript is on. */
+.board__leg {
+  display: none;
+}
+
+/* One dark square, always a real button so it is focusable and keyboard operable. */
+.square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--board-dark);
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+}
+
+.square:hover {
+  filter: none;
+}
+
+.square[disabled] {
+  background: var(--board-dark);
+  border: 0;
+  cursor: default;
+  filter: none;
+}
+
+/* Two colours, so the ring is visible on a dark square, on a deepened last-move square and on
+   the light surfaces elsewhere: the blue sits on the very edge and a light halo just inside it
+   (halo against a dark square 12.38:1, blue against the halo 6.16:1). */
+.square:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+  box-shadow: inset 0 0 0 calc(var(--focus-ring-width) * 2) var(--focus-ring-halo);
+  border-radius: 0;
+  z-index: 2;
+}
+
+/* Focus on a square that also carries the last-move marker: the halo sits inside the blue and
+   the marker ring outside the halo, so neither state hides the other. */
+.square--last-move:focus-visible {
+  box-shadow:
+    inset 0 0 0 calc(var(--focus-ring-width) * 2) var(--focus-ring-halo),
+    inset 0 0 0 calc(var(--focus-ring-width) * 2 + 4px) var(--square-last-move);
+}
+
+/* The last move's origin and destination. The square is deepened and gets a bright inset ring,
+   so the marker is legible against an ordinary dark square (6.05:1) and both disc colours stay
+   well clear of the square under them (Red 5.60:1, White 16.09:1). A mid-tone wash cannot do
+   that for both discs at once; the ratios are computed in tests/build/s4/contrast.py. */
+.square--last-move,
+.square--last-move[disabled] {
+  background: var(--square-last-move-fill);
+  box-shadow: inset 0 0 0 4px var(--square-last-move);
+}
+
+/* The selected piece, outlined. */
+.square--selected::after {
+  content: "";
+  position: absolute;
+  inset: 6%;
+  border: 4px solid var(--square-selected);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* A legal destination, marked with a dot. The dot is in every empty dark square and only
+   shown here, so the board controller can reveal one by adding a class and never has to
+   build markup. */
+.square__dot {
+  display: none;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: var(--square-target);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
+}
+
+.square--target .square__dot {
+  display: block;
+}
+
+.square--target {
+  cursor: pointer;
+}
+
+/* Pieces ------------------------------------------------------------------- */
+
+.piece {
+  display: block;
+  width: 84%;
+  height: 84%;
+}
+
+/* Every disc carries the same light outer stroke: that boundary, not the fill, is what has to
+   clear 3:1 against the square underneath, and it does so on both square colours. */
+.piece__disc {
+  stroke: var(--piece-halo);
+  stroke-width: 4;
+}
+
+.piece__ring {
+  fill: none;
+  stroke-width: 2;
+  opacity: 0.55;
+}
+
+.piece--red .piece__disc {
+  fill: var(--piece-red);
+}
+
+.piece--red .piece__ring {
+  stroke: var(--piece-red-edge);
+}
+
+.piece--white .piece__disc {
+  fill: var(--piece-white);
+}
+
+.piece--white .piece__ring {
+  stroke: var(--piece-white-edge);
+}
+
+.piece__crown {
+  fill: var(--piece-crown);
+  stroke: var(--board-frame);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+/* Status, players, move list ----------------------------------------------- */
+
+.status,
+.moves,
+.controls,
+.confirm {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.status__headline {
+  margin: 0 0 var(--space-3);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.status__headline--result {
+  color: var(--accent);
+}
+
+.players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  border-left: 4px solid transparent;
+  padding-left: var(--space-2);
+}
+
+.player--turn {
+  border-left-color: var(--accent);
+}
+
+.player__swatch {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid var(--board-frame);
+}
+
+.player__swatch--red {
+  background: var(--piece-red);
+}
+
+.player__swatch--white {
+  background: var(--piece-white);
+}
+
+.player__side {
+  font-weight: 700;
+}
+
+.player__count {
+  color: var(--ink-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.moves__heading {
+  font-size: 1rem;
+  margin-bottom: var(--space-2);
+}
+
+.moves__empty {
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.moves__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 18rem;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+}
+
+.moves__pair {
+  display: flex;
+  gap: var(--space-2);
+  padding: 2px 0;
+}
+
+.moves__number {
+  color: var(--ink-muted);
+  min-width: 2.5em;
+  text-align: right;
+}
+
+.moves__move {
+  min-width: 5.5em;
+}
+
+.moves__move--latest {
+  background: var(--square-selected);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+  font-weight: 700;
+}
+
+.controls__note,
+.controls__result {
+  margin: 0 0 var(--space-3);
+}
+
+.controls__result {
+  font-weight: 700;
+}
+
+.controls .button-row:last-child,
+.confirm .button-row:last-child {
+  margin-bottom: 0;
+}
+
+.button--danger {
+  background: var(--danger);
+  color: var(--accent-ink);
+}
+
+.confirm {
+  border-left: 6px solid var(--danger);
+  margin-bottom: var(--space-5);
+  max-width: var(--measure);
+}
+
+.confirm__title {
+  margin-bottom: var(--space-2);
+}
+
+/* Narrow viewports: one column, and the board still fills the width at 360 px. */
+@media (max-width: 52rem) {
+  .match {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-zone {
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 26rem) {
+  .board {
+    border-width: 3px;
+  }
+
+  .moves__list {
+    max-height: 12rem;
+  }
+}

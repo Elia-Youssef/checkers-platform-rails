@@ -1,0 +1,38 @@
+<%# The controls for the seats this visitor holds, one branch per state of the match.
+
+    Undo and Resign disappear while a jump sequence is pending and whenever the match is not
+    active, and the server refuses both in those states as well, so a forged post gets 422
+    rather than a hidden button's effect. A viewer sees a note and nothing else.
+
+    The waiting branch is what a match with a free seat shows; phase 6 replaces its note with
+    the invite panel (the link, the copy button and Cancel). %>
+<div id="<%= Match::CONTROLS_ID %>" class="controls">
+  <% if viewer %>
+    <p class="controls__note" role="note">
+      You are viewing this match. Only its two players can move, undo or resign.
+    </p>
+  <% elsif match.finished? %>
+    <p class="controls__result"><%= result_sentence(match) %>.</p>
+    <div class="button-row">
+      <%= button_to "Play again", matches_path, params: match.play_again_params, class: "button" %>
+      <%= link_to "Back to the home page", root_path, class: "button button--quiet" %>
+    </div>
+  <% elsif match.waiting? %>
+    <p class="controls__note" role="note">
+      This match has not started yet: it is waiting for a second player to take the free seat.
+      Nothing on the board can be moved until then.
+    </p>
+  <% elsif game.pending? %>
+    <p class="controls__note" role="note">
+      A jump is in progress. Finish it with the piece on square <%= game.locked_square %>:
+      Undo and Resign come back when the sequence ends.
+    </p>
+  <% else %>
+    <div class="button-row">
+      <% if match.can_undo? %>
+        <%= button_to "Undo", match_undo_path(match), class: "button button--quiet" %>
+      <% end %>
+      <%= link_to "Resign", new_match_resignation_path(match), class: "button button--quiet" %>
+    </div>
+  <% end %>
+</div>

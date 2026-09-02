@@ -1,0 +1,3 @@
+<%# The flash zone. It is always in the page, with a stable id, so a Turbo Stream response
+    can replace it and a message raised by a refused move shows up without a page load. %>
+<div id="flashes"><%= render "layouts/flashes" %></div>

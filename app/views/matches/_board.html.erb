@@ -1,0 +1,59 @@
+<%#
+  The board: an 8 by 8 CSS grid with Red at the bottom, every dark square a real button with
+  an accessible label naming its number and its contents.
+
+  Nothing here decides a rule. game.targets_by_square is the engine's answer for the whole
+  board in one pass: it respects mandatory capture, it is empty once the match has finished,
+  and while a jump sequence is pending it holds the locked square and nothing else, so a board
+  rendered from it cannot offer an illegal selection. The selected square arrives as a plain
+  URL parameter and is honoured only when the engine says that piece can move.
+
+  With JavaScript off every square is a form: a destination posts one leg to the moves
+  endpoint, one of your own movable pieces re-selects, and anything else clears the selection.
+  With JavaScript on the board controller intercepts the click, keeps the selection in the
+  page and posts the leg through the one hidden form below, so selecting costs no round trip.
+%>
+<%
+  targets_by_square = game.targets_by_square
+  # Playable means: this visitor holds a seat, the match is running (not waiting for an
+  # opponent and not over), and the engine still has moves. A waiting match renders the same
+  # board with every square switched off, so no control on the page is dead.
+  playable = !viewer && match.active? && !game.finished?
+  selection =
+    if !playable
+      nil
+    elsif game.pending?
+      game.locked_square
+    elsif targets_by_square.key?(selected)
+      selected
+    end
+  targets = selection ? Array(targets_by_square[selection]) : []
+  shown = game.display_position
+  last_move = game.last_move
+  tinted = last_move ? [ last_move.origin, last_move.destination ] : []
+%>
+<div id="<%= Match::BOARD_ID %>" class="board-zone" data-controller="board"
+     data-action="click->board#click"
+     data-board-selected-value="<%= selection %>"
+     data-board-locked-value="<%= game.pending? %>">
+  <div class="board" role="group" aria-label="Checkers board, Red at the bottom">
+    <% board_cells.each do |number| %>
+      <% if number.nil? %>
+        <div class="board__cell board__cell--light" aria-hidden="true"></div>
+      <% else %>
+        <%= render "matches/square", match: match, number: number, piece: shown.at(number),
+              selection: selection, target: targets.include?(number),
+              tinted: tinted.include?(number), playable: playable, pending: game.pending?,
+              own_targets: (targets_by_square[number] if playable) %>
+      <% end %>
+    <% end %>
+  </div>
+
+  <% if playable %>
+    <%= form_with url: match_moves_path(match), method: :post, class: "board__leg",
+                  data: { board_target: "form" } do %>
+      <%= hidden_field_tag :from, nil, id: nil, data: { board_target: "from" } %>
+      <%= hidden_field_tag :to, nil, id: nil, data: { board_target: "to" } %>
+    <% end %>
+  <% end %>
+</div>

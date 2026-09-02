@@ -1,0 +1,30 @@
+# Action Cable runs on Solid Cable in every environment, not only in production, so that the
+# live board of an online match is delivered through the same adapter here, in the test
+# suite and in production. Each environment gets its own cable database (see
+# config/database.yml); its schema is db/cable_schema.rb and bin/rails db:prepare loads it.
+#
+# A test that wants to assert on broadcasts rather than observe them can still include
+# ActionCable::TestHelper, which swaps in the in-memory test adapter for that test only.
+development:
+  adapter: solid_cable
+  connects_to:
+    database:
+      writing: cable
+  polling_interval: 0.1.seconds
+  message_retention: 1.day
+
+test:
+  adapter: solid_cable
+  connects_to:
+    database:
+      writing: cable
+  polling_interval: 0.1.seconds
+  message_retention: 1.day
+
+production:
+  adapter: solid_cable
+  connects_to:
+    database:
+      writing: cable
+  polling_interval: 0.1.seconds
+  message_retention: 1.day

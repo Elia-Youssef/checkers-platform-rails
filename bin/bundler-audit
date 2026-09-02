@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# The advisory database is cached inside the bundle volume (see compose.yaml) rather than under
+# $HOME, where every `docker compose run --rm` starts from an empty filesystem and bundler-audit
+# re-clones ruby-advisory-db from github.com: 5 to 8 seconds on every run, and a hard failure with
+# no network. BUNDLER_AUDIT_DB is read when bundler/audit/database.rb is loaded, so it is set
+# before the require below. Export BUNDLER_AUDIT_DB to move the cache somewhere else.
+ENV["BUNDLER_AUDIT_DB"] ||= File.join(Gem.dir, "ruby-advisory-db")
+
+require_relative "../config/boot"
+require "bundler/audit/cli"
+
+database = Bundler::Audit::Database
+
+if database.exists?
+  # Update when the network is there, carry on with the cached copy when it is not: a failed
+  # update is not a failed audit, and the gate must not depend on github.com being reachable.
+  unless database.update!(quiet: true)
+    warn "bundler-audit: could not update the advisory database, auditing against the cached copy"
+  end
+elsif !database.update!(quiet: false)
+  # Nothing cached and nothing downloadable: auditing against no advisories at all would be a
+  # silent pass, so this is a real failure.
+  abort "bundler-audit: no advisory database at #{database.path} and it could not be downloaded"
+end
+
+cached = database.new
+puts "ruby-advisory-db: #{cached.size} advisories, last updated #{cached.last_updated_at}, at #{cached.path}"
+abort "bundler-audit: the advisory database at #{cached.path} is empty" if cached.size.zero?
+
+ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")
+Bundler::Audit::CLI.start

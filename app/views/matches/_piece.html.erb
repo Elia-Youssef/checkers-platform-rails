@@ -1,0 +1,11 @@
+<%# A piece: an inline SVG disc, with a crown glyph inside a king's disc. Drawn in code, from
+    the palette in application.css; the project ships no image file. The disc is decorative
+    because the button around it already carries the accessible name. %>
+<svg class="piece piece--<%= piece.side %><%= " piece--king" if piece.king? %>"
+     viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+  <circle class="piece__disc" cx="50" cy="50" r="35" />
+  <circle class="piece__ring" cx="50" cy="50" r="26" />
+  <% if piece.king? %>
+    <path class="piece__crown" d="M33 63 L33 40 L41.5 49 L50 35 L58.5 49 L67 40 L67 63 Z" />
+  <% end %>
+</svg>

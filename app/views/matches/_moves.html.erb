@@ -1,0 +1,26 @@
+<%# The move list in PDN, as numbered pairs, with the latest move highlighted. The pairing and
+    the notation come from Draughts::PDN, so the list and an exported .pdn file can never
+    disagree. A whole jump sequence is one entry (24x15x8), because it is one move. %>
+<% pairs = move_pairs(game) %>
+<div id="<%= Match::MOVES_ID %>" class="moves">
+  <h2 class="moves__heading">Moves</h2>
+  <% if pairs.empty? %>
+    <p class="moves__empty">No moves yet.</p>
+  <% else %>
+    <ol class="moves__list">
+      <% pairs.each do |number, red, white| %>
+        <li class="moves__pair">
+          <span class="moves__number"><%= number %>.</span>
+          <% if red.nil? %>
+            <%# Only a game set up from a position can open with White's move; PDN writes the
+                missing Red move as an ellipsis. %>
+            <span class="moves__move moves__move--none">...</span>
+          <% end %>
+          <% [ red, white ].compact.each do |entry| %>
+            <span class="moves__move<%= " moves__move--latest" if entry.ply == game.plies %>"><%= entry.pdn %></span>
+          <% end %>
+        </li>
+      <% end %>
+    </ol>
+  <% end %>
+</div>

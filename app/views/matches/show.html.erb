@@ -1,0 +1,17 @@
+<%# The heading comes from the match, not from this file, so the modes phases 5 and 6 add
+    name themselves without a view change. %>
+<% content_for :title, @match.heading %>
+
+<h1 class="match__heading"><%= @match.heading %></h1>
+
+<div class="match">
+  <div class="match__board">
+    <%= render "matches/board", match: @match, game: @game, selected: @selected, viewer: @viewer %>
+  </div>
+
+  <div class="match__aside">
+    <%= render "matches/status", match: @match, game: @game %>
+    <%= render "matches/moves", game: @game %>
+    <%= render "matches/controls", match: @match, game: @game, viewer: @viewer %>
+  </div>
+</div>

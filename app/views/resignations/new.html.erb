@@ -1,0 +1,32 @@
+<% content_for :title, "Resign this match?" %>
+
+<h1 class="match__heading">Resign this match?</h1>
+
+<%# The colours here are the actor's own seat and its opponent, never the side to move. In a
+    hot-seat match the two coincide, because one identity holds both seats; a player who holds
+    one seat resigns that colour whether or not it is their turn, and the other colour wins. %>
+<div class="confirm" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+  <h2 id="confirm-title" class="confirm__title">
+    Resign as <%= side_label(@resigning_side) %>?
+  </h2>
+  <p id="confirm-body" class="confirm__body">
+    You hold the <%= side_label(@resigning_side) %> seat<%= ", and #{side_label(@match.side_to_move)} is to move" if @match.side_to_move != @resigning_side %>.
+    Resigning ends the match at once as a win for <%= side_label(@winning_side) %>,
+    with the reason recorded as resignation. Cancelling changes nothing.
+  </p>
+  <div class="button-row">
+    <%= button_to "Resign", match_resignation_path(@match), class: "button button--danger" %>
+    <%= link_to "Cancel", match_path(@match), class: "button button--quiet" %>
+  </div>
+</div>
+
+<div class="match">
+  <div class="match__board">
+    <%= render "matches/board", match: @match, game: @game, selected: nil, viewer: true %>
+  </div>
+
+  <div class="match__aside">
+    <%= render "matches/status", match: @match, game: @game %>
+    <%= render "matches/moves", game: @game %>
+  </div>
+</div>

@@ -1,0 +1,7 @@
+<%# What is drawn inside a square button: the piece, or the destination dot that CSS reveals
+    only while the square is a legal destination. No image file, only inline SVG and CSS. %>
+<% if piece %>
+  <%= render "matches/piece", piece: piece %>
+<% else %>
+  <span class="square__dot" aria-hidden="true"></span>
+<% end %>

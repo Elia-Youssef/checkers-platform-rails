@@ -1,0 +1,65 @@
+# Development environment for the Checkers Rails application.
+# Run every command from this directory (project/), which is also the Rails root.
+#
+#   docker compose build web                     build the image
+#   docker compose run --rm web <command>        run one command inside the container
+#   docker compose up                            start the app once it exists (phase 3 onward)
+#   docker compose down -v                       stop and reset the gem volume
+
+# An explicit project name keeps the container, network and gem volume namespaced as
+# checkers-ruby_* instead of taking their name from the parent directory.
+name: checkers-ruby
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: checkers-ruby-dev
+    working_dir: /app
+    volumes:
+      # The Rails root itself is bind mounted, so an edit on the host is live in the container.
+      - .:/app
+      # Installed gems live in a named volume so that bundle install survives container
+      # recreation, and bin/bundler-audit caches its clone of ruby-advisory-db inside it at
+      # /usr/local/bundle/ruby-advisory-db (BUNDLER_AUDIT_DB below), so the gem audit neither
+      # re-downloads the advisory database on every run nor needs the network once it has been
+      # fetched once. Docker seeds an empty named volume from the image's own directory the
+      # first time it is used, so the rails 8.1.3.1 gem baked into the image is there from the
+      # start. After a rebuild that changes baked in gems, run `docker compose down -v` to drop
+      # this volume so it is seeded again from the new image (the advisory database goes with it
+      # and the next online run fetches it again).
+      - bundle:/usr/local/bundle
+      # tmp/ and log/ are written constantly (the bootsnap compile cache, the Puma pid,
+      # Rails logs) and every write through the Windows bind mount costs. Keeping them in
+      # named volumes takes them off the host filesystem: measured over a full bin/ci this is
+      # the difference between about three minutes and about forty seconds, and it also keeps
+      # the working copy free of tmp and log contents.
+      - tmp:/app/tmp
+      - log:/app/log
+      # The SQLite databases, for the same reason and one more: the working copy then never
+      # holds a database file. `docker compose down -v` resets them along with the gems.
+      - storage:/app/storage
+    environment:
+      # Where bin/bundler-audit keeps its copy of ruby-advisory-db. Inside the bundle volume,
+      # so it persists across `docker compose run --rm` and across `docker compose up`.
+      BUNDLER_AUDIT_DB: /usr/local/bundle/ruby-advisory-db
+    ports:
+      - "3000:3000"
+    # Headless Chromium exhausts the default 64 MB /dev/shm and crashes mid test.
+    shm_size: 1gb
+    # Keep a TTY so that `docker compose run` is usable interactively (bin/rails console,
+    # a debugger breakpoint, a shell).
+    stdin_open: true
+    tty: true
+    # `docker compose up` installs any missing gems, creates and migrates the SQLite
+    # databases (the primary one and the Solid Cable one), clears a pid file left behind by
+    # a container that was killed, and starts the server on http://localhost:3000.
+    # `docker compose run --rm web <command>` replaces this command with <command>.
+    command: bash -c "(bundle check || bundle install) && bin/rails db:prepare && rm -f tmp/pids/server.pid && bin/rails server -b 0.0.0.0 -p 3000"
+
+volumes:
+  bundle:
+  tmp:
+  log:
+  storage:

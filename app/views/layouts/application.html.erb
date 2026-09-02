@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "Checkers" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Checkers">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <%# The three icons below are the Rails generated favicons under public/. They are the
+        only image files in the project and nothing in the game uses an image. %>
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to the main content</a>
+
+    <header class="masthead">
+      <div class="masthead__inner">
+        <%= link_to "Checkers", root_path, class: "masthead__brand" %>
+
+        <nav class="masthead__nav" aria-label="Main">
+          <%# My games arrives with the history pages in a later phase. It is inert rather
+              than a link so that nothing in the navigation leads to a dead page. %>
+          <span class="masthead__link masthead__link--pending" aria-disabled="true">My games</span>
+
+          <% if authenticated? %>
+            <span class="masthead__identity"><%= Current.user&.display_name %></span>
+            <%= button_to "Sign out", session_path, method: :delete, class: "button button--quiet" %>
+          <% else %>
+            <%= link_to "Sign in", new_session_path, class: "masthead__link" %>
+            <%= link_to "Sign up", new_registration_path, class: "masthead__link" %>
+          <% end %>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="page">
+      <%= render "layouts/flash_zone" %>
+      <%= yield %>
+    </main>
+
+    <footer class="colophon">
+      <p>English draughts. The rules live in a pure-Ruby engine; the pages are Rails.</p>
+    </footer>
+  </body>
+</html>

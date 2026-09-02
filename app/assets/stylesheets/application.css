@@ -1,0 +1,403 @@
+/*
+ * Checkers: design tokens and the application shell.
+ *
+ * Everything on screen is CSS and inline SVG written in code. No image file is ever
+ * referenced from a stylesheet or a view, no CSS url reference to a png, jpg, gif, webp
+ * or svg, and app/assets/images holds only .keep (TASK-BRIEF.md section 1.8).
+ *
+ * Propshaft serves every file under app/assets/stylesheets through
+ * `stylesheet_link_tag :app` in the layout, in alphabetical order, so a later phase can
+ * add board.css beside this file and it will load after these tokens.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Board and pieces. The board is drawn from these in a later phase; they live here so
+     that one palette serves the whole application. Red discs read as red and White discs
+     as white or cream against squares that contrast clearly with both. */
+  --board-dark: #3f2a1c;
+  --board-light: #e6d2ac;
+  --board-frame: #241609;
+  --board-max: 640px;
+  --piece-red: #ef5f45;
+  --piece-red-edge: #8f2417;
+  --piece-white: #f6efe2;
+  --piece-white-edge: #a2916f;
+  /* The outer stroke every disc carries. A disc is identified by its boundary, and a light
+     boundary clears 3:1 against every square colour a piece can sit on, which no single fill
+     colour can do for both a red disc and a cream one (see tests/build/s4/contrast.py). */
+  --piece-halo: #f7ecd8;
+  --piece-crown: #f2c14e;
+  --square-selected: #f2c14e;
+  --square-target: #7fd4a2;
+  /* The last move is a bright inset ring over a deepened square, not a mid-brown wash. A wash
+     that a red disc and a cream disc are both 3:1 from does not exist: they are only 4.2:1
+     apart, and 3:1 on each side needs 9:1. Deepening the square instead puts both discs well
+     clear of it, and the ring carries the marker's own 6:1 against an ordinary dark square. */
+  --square-last-move: #e0a15e;
+  --square-last-move-fill: #1d1206;
+
+  /* Surfaces and text. */
+  --surface: #f7f4ef;
+  --surface-raised: #ffffff;
+  --surface-sunken: #ece6dc;
+  --border: #d5cdc0;
+  --ink: #23201c;
+  --ink-muted: #5d564c;
+  --accent: #1f5f4b;
+  --accent-ink: #ffffff;
+  --danger: #a02a1c;
+  --notice: #1f5f4b;
+
+  /* Spacing scale, radii, focus ring. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --focus-ring: #1d4ed8;
+  /* The second colour of the focus ring. The blue alone is only 2:1 against a dark square, so
+     board squares draw the blue with a light halo just inside it; the pair is legible on every
+     background in the application. */
+  --focus-ring-halo: #f9f5ec;
+  --focus-ring-width: 3px;
+
+  /* Type. System fonts only, no web font is loaded. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --measure: 62ch;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+h1, h2, h3 {
+  line-height: 1.2;
+  margin: 0 0 var(--space-3);
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.25rem; }
+
+p {
+  margin: 0 0 var(--space-3);
+  max-width: var(--measure);
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--surface-raised);
+  padding: var(--space-2) var(--space-4);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  left: var(--space-3);
+  top: var(--space-3);
+}
+
+/* Masthead ---------------------------------------------------------------- */
+
+.masthead {
+  background: var(--board-dark);
+  color: var(--board-light);
+  border-bottom: 4px solid var(--board-frame);
+}
+
+.masthead__inner {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  justify-content: space-between;
+}
+
+.masthead__brand {
+  color: var(--board-light);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.masthead__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.masthead__link {
+  color: var(--board-light);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.masthead__link:hover {
+  border-bottom-color: currentColor;
+}
+
+.masthead__link--pending {
+  color: rgba(230, 210, 172, 0.6);
+  cursor: default;
+}
+
+.masthead__identity {
+  color: var(--board-light);
+  font-weight: 600;
+}
+
+.masthead .button {
+  padding: var(--space-1) var(--space-3);
+}
+
+/* Page -------------------------------------------------------------------- */
+
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-7);
+}
+
+.colophon {
+  border-top: 1px solid var(--border);
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.colophon p {
+  margin: 0 auto;
+}
+
+/* Flashes ----------------------------------------------------------------- */
+
+.flashes {
+  margin-bottom: var(--space-4);
+}
+
+.flash {
+  border: 1px solid var(--border);
+  border-left-width: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
+.flash--notice {
+  border-left-color: var(--notice);
+}
+
+.flash--alert {
+  border-left-color: var(--danger);
+}
+
+/* Buttons and forms ------------------------------------------------------- */
+
+.button,
+button,
+input[type="submit"] {
+  font: inherit;
+  display: inline-block;
+  border: 1px solid var(--board-frame);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:hover,
+button:hover,
+input[type="submit"]:hover {
+  filter: brightness(1.1);
+}
+
+.button[disabled],
+button[disabled],
+input[type="submit"][disabled] {
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  border-color: var(--border);
+  cursor: not-allowed;
+  filter: none;
+}
+
+.button--quiet {
+  background: transparent;
+  color: inherit;
+  border-color: currentColor;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.form {
+  max-width: 26rem;
+}
+
+.form__field {
+  margin-bottom: var(--space-4);
+}
+
+.form__field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.form__field input {
+  font: inherit;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.form__hint {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+  margin-top: var(--space-1);
+}
+
+.form__error {
+  display: block;
+  color: var(--danger);
+  font-size: 0.875rem;
+  margin-top: var(--space-1);
+}
+
+.form__field--invalid input {
+  border-color: var(--danger);
+  border-width: 2px;
+}
+
+.form__errors {
+  border: 1px solid var(--danger);
+  border-left-width: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.form__errors ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.form__aside {
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+}
+
+/* Home: the four ways to play --------------------------------------------- */
+
+.lede {
+  font-size: 1.125rem;
+  color: var(--ink-muted);
+}
+
+.modes {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  margin-top: var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.mode {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mode h2 {
+  margin: 0;
+}
+
+.mode p {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.mode__action {
+  margin-top: auto;
+  padding-top: var(--space-3);
+}
+
+.mode__note {
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Narrow viewports: the board has to stay playable at 360 px, so nothing in the shell may
+   force a horizontal scrollbar there. */
+@media (max-width: 26rem) {
+  .page {
+    padding: var(--space-4) var(--space-3) var(--space-6);
+  }
+
+  .masthead__inner {
+    padding: var(--space-3);
+  }
+
+  h1 { font-size: 1.5rem; }
+}

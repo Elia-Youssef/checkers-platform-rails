@@ -1,0 +1,29 @@
+<%# Who is playing, whose turn it is, how many pieces each side has, and, once the match has
+    finished, the result and its reason in words. The counts are taken from the board that is
+    actually drawn, so part way through a jump sequence they already show the pieces the
+    jumping piece has passed over as taken, exactly as the board does. %>
+<% shown = game.display_position %>
+<div id="<%= Match::STATUS_ID %>" class="status">
+  <p class="status__headline<%= " status__headline--result" if match.finished? %>" role="status">
+    <% if match.finished? %>
+      <%= result_sentence(match) %>
+    <% elsif match.waiting? %>
+      Waiting for a second player
+    <% elsif game.pending? %>
+      <%= turn_sentence(match) %>: finish the jump from square <%= game.locked_square %>
+    <% else %>
+      <%= turn_sentence(match) %>
+    <% end %>
+  </p>
+
+  <ul class="players">
+    <% Match::SIDES.each do |side| %>
+      <li class="player<%= " player--turn" if match.active? && match.side_to_move == side %>">
+        <span class="player__swatch player__swatch--<%= side %>" aria-hidden="true"></span>
+        <span class="player__side"><%= side_label(side) %></span>
+        <span class="player__name"><%= match.seat_name(side) %></span>
+        <span class="player__count"><%= shown.count(Draughts::Side.cast(side)) %> pieces</span>
+      </li>
+    <% end %>
+  </ul>
+</div>

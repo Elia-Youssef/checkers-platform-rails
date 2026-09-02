@@ -1,0 +1,64 @@
+<% content_for :title, "Sign up" %>
+
+<h1>Create an account</h1>
+
+<p>
+  An account lets you play online and keeps your games under one name. Hot-seat and
+  computer games do not need one.
+</p>
+
+<%= form_with model: @user, url: registration_path, class: "form" do |form| %>
+  <% if @user.errors.any? %>
+    <div class="form__errors" role="alert">
+      <p><strong><%= pluralize(@user.errors.count, "problem") %> stopped this sign up:</strong></p>
+      <ul>
+        <% @user.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="<%= field_class(@user, :email_address) %>">
+    <%= form.label :email_address, "Email address" %>
+    <%= form.email_field :email_address, required: true, autofocus: true,
+          autocomplete: "username", aria: field_aria(@user, :email_address) %>
+    <%= field_error(@user, :email_address) %>
+  </div>
+
+  <%# The length rules are deliberately not minlength/maxlength attributes. The browser
+      would then refuse a one character or twenty-five character name itself, and the
+      server's field error, which is the rule that actually holds, would never be seen. %>
+  <div class="<%= field_class(@user, :display_name) %>">
+    <%= form.label :display_name, "Display name" %>
+    <%= form.text_field :display_name, required: true, autocomplete: "nickname",
+          aria: field_aria(@user, :display_name) %>
+    <span class="form__hint">
+      <%= User::DISPLAY_NAME_RANGE.min %> to <%= User::DISPLAY_NAME_RANGE.max %> characters.
+      This is the name shown on boards and in move lists.
+    </span>
+    <%= field_error(@user, :display_name) %>
+  </div>
+
+  <div class="<%= field_class(@user, :password) %>">
+    <%= form.label :password, "Password" %>
+    <%= form.password_field :password, required: true, autocomplete: "new-password",
+          maxlength: 72, aria: field_aria(@user, :password) %>
+    <span class="form__hint">At least <%= User::MINIMUM_PASSWORD_LENGTH %> characters.</span>
+    <%= field_error(@user, :password) %>
+  </div>
+
+  <div class="<%= field_class(@user, :password_confirmation) %>">
+    <%= form.label :password_confirmation, "Repeat password" %>
+    <%= form.password_field :password_confirmation, required: true,
+          autocomplete: "new-password", maxlength: 72,
+          aria: field_aria(@user, :password_confirmation) %>
+    <%= field_error(@user, :password_confirmation) %>
+  </div>
+
+  <%= form.submit "Sign up" %>
+<% end %>
+
+<p class="form__aside">
+  Already have an account? <%= link_to "Sign in", new_session_path %>.
+</p>

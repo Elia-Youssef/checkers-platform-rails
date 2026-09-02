@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+require "rubygems"
+require "bundler/setup"
+
+# The generated binstub unshifted "--ensure-latest" here, which asks rubygems.org on every run
+# whether a newer brakeman exists. That is in direct conflict with the exact pin in the Gemfile
+# (brakeman 8.0.6): offline the check dies inside Brakeman.ensure_latest, and the day 8.0.7 is
+# published it would exit non-zero with "Brakeman 8.0.6 is not the latest version". The pin is
+# what fixes the version here; bundler-audit and dependabot are what notice a new release.
+
+load Gem.bin_path("brakeman", "brakeman")

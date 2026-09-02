@@ -1,0 +1,78 @@
+source "https://rubygems.org"
+
+# The Ruby pin, so that bundler refuses a wrong interpreter and Gemfile.lock records it in a
+# RUBY VERSION section. .ruby-version says the same thing for the version managers and for
+# Dockerfile's RUBY_VERSION argument.
+ruby "4.0.6"
+
+# Every gem is pinned to an exact version (TASK-BRIEF.md section 3: no wildcard versions).
+# The versions below are the ones the first resolution of the generated Gemfile produced
+# inside the development image on 2026-09-02; Gemfile.lock records the same numbers.
+
+gem "rails", "8.1.3.1"
+# The modern asset pipeline for Rails [https://github.com/rails/propshaft]
+gem "propshaft", "1.3.2"
+# Use sqlite3 as the database for Active Record
+gem "sqlite3", "2.9.6"
+# Use the Puma web server [https://github.com/puma/puma]
+gem "puma", "8.0.2"
+# Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
+gem "importmap-rails", "2.2.3"
+# Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
+gem "turbo-rails", "2.0.23"
+# Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
+gem "stimulus-rails", "1.3.4"
+
+# Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
+gem "bcrypt", "3.1.22"
+
+# Two generated gems are gone. jbuilder: this application renders HTML and Turbo Streams and
+# has no JSON view anywhere. image_processing: it exists to transform Active Storage variants,
+# and nothing here uploads or transforms an image (TASK-BRIEF.md section 1.8 forbids image files
+# altogether); it also pulled ruby-vips and mini_magick in, put libvips into the production image
+# and printed a warning into every development log because the dev image has no libvips.
+# config/application.rb sets the variant processor to :disabled to match.
+#
+# The generated Gemfile also carried tzinfo-data for the windows and jruby platforms. This
+# application runs only in the Docker images in this directory, both Linux, so that gem is
+# never resolved here (it does not appear in Gemfile.lock) and could not be pinned to a
+# version this build has actually seen. It is left out rather than pinned to a guess.
+
+# Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
+gem "solid_cache", "1.0.10"
+gem "solid_queue", "1.7.0"
+gem "solid_cable", "4.0.2"
+
+# Reduces boot times through caching; required in config/boot.rb
+gem "bootsnap", "1.25.0", require: false
+
+# Deploy this application anywhere as a Docker container [https://kamal-deploy.org]
+gem "kamal", "2.12.0", require: false
+
+# Add HTTP asset caching/compression and X-Sendfile acceleration to Puma [https://github.com/basecamp/thruster/]
+gem "thruster", "0.1.26", require: false
+
+group :development, :test do
+  # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
+  gem "debug", "1.11.1", platforms: %i[ mri windows ], require: "debug/prelude"
+
+  # Audits gems for known security defects (use config/bundler-audit.yml to ignore issues)
+  gem "bundler-audit", "0.9.3", require: false
+
+  # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
+  gem "brakeman", "8.0.6", require: false
+
+  # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
+  gem "rubocop-rails-omakase", "1.1.0", require: false
+end
+
+group :development do
+  # Use console on exceptions pages [https://github.com/rails/web-console]
+  gem "web-console", "4.3.0"
+end
+
+group :test do
+  # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
+  gem "capybara", "3.40.0"
+  gem "selenium-webdriver", "4.48.0"
+end

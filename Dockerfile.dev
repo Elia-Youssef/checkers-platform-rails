@@ -1,0 +1,54 @@
+# Development image for the Checkers Rails application (English draughts).
+# Built and run only through project/compose.yaml, from the project/ directory.
+# The production image is the Rails generated Dockerfile and is a separate file.
+#
+# Base: ruby:4.0.6, which is Debian 13 (trixie). The Ruby 3.4.10 fallback named in
+# TASK-BRIEF.md applies only if a required gem turns out to have no Ruby 4.0 build.
+FROM ruby:4.0.6
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8
+
+# build-essential, pkg-config, zlib1g-dev: compiling native gem extensions.
+# sqlite3, libsqlite3-dev: the database in every environment, CLI plus headers.
+# libyaml-dev: psych, which Rails loads for every YAML config file.
+# git, curl: tooling the Rails generators and bin/ci expect to find.
+# chromium, chromium-driver: the headless browser for Capybara system tests, both
+# from the Debian archive and from one apt transaction so they cannot drift apart.
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        pkg-config \
+        zlib1g-dev \
+        git \
+        curl \
+        sqlite3 \
+        libsqlite3-dev \
+        libyaml-dev \
+        chromium \
+        chromium-driver && \
+    rm -rf /var/lib/apt/lists/*
+
+# Fail the image build here, not inside a system test three phases later, if the
+# browser and its driver ever come out of the archive at different major versions.
+RUN set -eu; \
+    browser_major="$(chromium --version | grep -oE '[0-9]+' | head -n 1)"; \
+    driver_major="$(chromedriver --version | grep -oE '[0-9]+' | head -n 1)"; \
+    echo "chromium major ${browser_major}, chromedriver major ${driver_major}"; \
+    if [ "${browser_major}" != "${driver_major}" ]; then \
+        echo "chromium and chromedriver major versions differ" >&2; \
+        exit 1; \
+    fi
+
+# Current RubyGems and bundler, then the pinned Rails, so that phase 3 can run
+# `rails new` inside this container. GEM_HOME stays at the image default
+# (/usr/local/bundle), which compose.yaml keeps in a named volume.
+RUN gem update --system --no-document && \
+    gem install rails -v 8.1.3.1 --no-document
+
+WORKDIR /app
+
+EXPOSE 3000
+
+# compose.yaml supplies the real command. A bare `docker run` of this image opens a shell.
+CMD ["bash"]

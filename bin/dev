@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+# -b 0.0.0.0 because this always runs inside a container: bound to 127.0.0.1, the default, the
+# server would be unreachable from the host. Anything passed on the command line still wins.
+exec "./bin/rails", "server", "-b", "0.0.0.0", *ARGV

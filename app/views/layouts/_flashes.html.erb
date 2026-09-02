@@ -1,0 +1,12 @@
+<%# Every page renders its flashes here, so no controller view has to. An alert is
+    announced (role="alert"), a notice is polite (role="status"). %>
+<% if flash.any? { |_type, message| message.present? } %>
+  <div class="flashes">
+    <% flash.each do |type, message| %>
+      <% next if message.blank? %>
+      <div class="flash flash--<%= type %>" role="<%= type.to_s == "alert" ? "alert" : "status" %>">
+        <%= message %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

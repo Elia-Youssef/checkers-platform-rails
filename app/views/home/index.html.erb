@@ -1,0 +1,62 @@
+<% content_for :title, "Checkers" %>
+
+<h1>Play checkers</h1>
+
+<p class="lede">
+  English draughts on an 8 by 8 board: 12 men a side, captures are mandatory, and Red
+  moves first. Every rule is decided by the server, so a game plays with JavaScript
+  switched off.
+</p>
+
+<ul class="modes">
+  <li class="mode" id="mode-hotseat">
+    <h2>Play here</h2>
+    <p>Two players share one browser and take turns at the same board. No account needed.</p>
+    <div class="mode__action">
+      <%= button_to "Start a hot-seat game", matches_path, params: { mode: "hotseat" },
+            class: "button" %>
+      <p class="mode__note">Red moves first. Every rule is decided by the server.</p>
+    </div>
+  </li>
+
+  <li class="mode" id="mode-computer">
+    <h2>Play the computer</h2>
+    <p>
+      One player against the pure-Ruby engine at Easy, Medium or Hard, playing Red or
+      White. No account needed.
+    </p>
+    <div class="mode__action">
+      <button type="button" class="button" disabled>Start a game against the computer</button>
+      <p class="mode__note">Not yet connected in this build step.</p>
+    </div>
+  </li>
+
+  <li class="mode" id="mode-online">
+    <h2>Play online</h2>
+    <p>
+      Two signed-in players in two browsers. Create a match, send the invite link, and
+      both boards update live as the moves are made.
+    </p>
+    <div class="mode__action">
+      <% if authenticated? %>
+        <button type="button" class="button" disabled>Create an online match</button>
+        <p class="mode__note">Not yet connected in this build step.</p>
+      <% else %>
+        <div class="button-row">
+          <%= link_to "Sign in", new_session_path, class: "button" %>
+          <%= link_to "Sign up", new_registration_path, class: "button button--quiet" %>
+        </div>
+        <p class="mode__note">Online play needs an account in both seats.</p>
+      <% end %>
+    </div>
+  </li>
+
+  <li class="mode" id="mode-join">
+    <h2>Join a match</h2>
+    <p>Paste an invite link, or the token from one, to take the free seat in someone else's match.</p>
+    <div class="mode__action">
+      <button type="button" class="button" disabled>Join with an invite link</button>
+      <p class="mode__note">Not yet connected in this build step.</p>
+    </div>
+  </li>
+</ul>
