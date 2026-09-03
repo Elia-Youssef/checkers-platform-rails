@@ -55,4 +55,25 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # YJIT on in the test environment as well as in development and production.
+  #
+  # Rails 8.1's load_defaults sets config.yjit = !Rails.env.local?, so the suite ran the plain
+  # interpreter while the application ships on YJIT everywhere. That matters for one test:
+  # ComputerPlayTest's "a Hard reply on the audit's worst reachable position answers inside the
+  # budget" asserts RUBRIC item 10's three-second bound on the widest position two audits could
+  # reach. Without YJIT it measured 2.19 to 2.66 s against that bound, a margin of 12 to 27
+  # percent on a host this project has measured drifting 20 percent in a day and 42 percent in
+  # an afternoon; with YJIT it measures about 1.3 s, the same 224,710 nodes at the same depth.
+  # A red run should mean the shipped configuration missed the pin, not that the suite was
+  # timing an interpreter nothing runs. The bound stays at 3.0 s and the test still prints what
+  # it measured.
+  config.yjit = true
+
+  # The computer opponent's random source. Every computer move draws uniformly at random
+  # among the moves that scored equal, so games vary; a seed here makes that draw the same
+  # one every run, which is what lets a test assert a particular Easy or Medium game. Hard
+  # deepens against the wall clock as well, so a seed does not fix it and no test asserts a
+  # particular Hard move (see lib/draughts/ai.rb).
+  config.x.ai_random_seed = 20260902
 end

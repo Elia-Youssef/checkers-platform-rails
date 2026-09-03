@@ -32,6 +32,30 @@ module MatchesHelper
     "#{side_label(match.side_to_move)} to move"
   end
 
+  # What the computer's last move cost it, in words:
+  #
+  #   "Computer (Hard) replied at depth 10 in 0.81 s"
+  #   "Computer (Easy) replied in 0.00 s"     (Easy plays at random, so there is no depth)
+  #
+  # Once the match is over the same sentence says "last replied", because on a finished board
+  # a bare "replied" reads like a move that is still to come. The line stays on the page after
+  # the result on purpose: the depth is RUBRIC item 10's evidence and it has to survive a
+  # reload, a second browser and a restart.
+  #
+  # The numbers come from the move row, which the search wrote when it played, so the sentence
+  # is the same one the log line carries.
+  def computer_move_sentence(match, move)
+    seconds = (move.ai_elapsed_ms || 0) / 1000.0
+    depth = move.ai_depth.to_i
+    verb = match.finished? ? "last replied" : "replied"
+
+    if depth.positive?
+      format("%s %s at depth %d in %.2f s", match.computer_name, verb, depth, seconds)
+    else
+      format("%s %s in %.2f s", match.computer_name, verb, seconds)
+    end
+  end
+
   # The result and its reason in words: "White wins by resignation", "Red wins, no pieces
   # left", "Draw by threefold repetition".
   def result_sentence(match)

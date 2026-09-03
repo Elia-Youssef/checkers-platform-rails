@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_02_100001) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_02_110000) do
   create_table "matches", force: :cascade do |t|
     t.string "ai_level"
     t.datetime "created_at", null: false
@@ -39,6 +39,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_02_100001) do
   end
 
   create_table "moves", force: :cascade do |t|
+    t.integer "ai_depth"
+    t.integer "ai_elapsed_ms"
+    t.integer "ai_nodes"
     t.string "captures"
     t.datetime "created_at", null: false
     t.string "landings", null: false

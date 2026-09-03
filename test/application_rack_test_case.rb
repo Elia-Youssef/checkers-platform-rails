@@ -52,6 +52,19 @@ class ApplicationRackTestCase < ActionDispatch::SystemTestCase
     Match.order(:id).last
   end
 
+  # Starts a match against the computer from the home page, choosing the colour and the level
+  # with the form's own radio buttons.
+  def start_computer(colour: "red", level: "medium")
+    visit root_path
+    within "#mode-computer" do
+      choose "ai-colour-#{colour}"
+      choose "ai-level-#{level}"
+      click_button "Start a game against the computer"
+    end
+    assert_selector "##{Match::BOARD_ID}"
+    Match.order(:id).last
+  end
+
   # Plays a whole PDN move by clicking: the piece, then each landing square in turn.
   def play(pdn)
     squares = pdn.split(/[-x]/).map(&:to_i)

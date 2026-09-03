@@ -388,6 +388,51 @@ input[type="submit"][disabled] {
   margin: 0;
 }
 
+/* The create form on a mode card: fieldsets of radio buttons, because a choice made with
+   radio buttons needs no JavaScript, carries its own accessible grouping through the legend,
+   and posts exactly the parameter names the match stores. */
+.mode__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.choice {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.choice__legend {
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0 var(--space-1);
+}
+
+.choice__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+}
+
+.choice__option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.choice__option label {
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+
+.choice__option input {
+  accent-color: var(--accent);
+}
+
 /* Narrow viewports: the board has to stay playable at 360 px, so nothing in the shell may
    force a horizontal scrollbar there. */
 @media (max-width: 26rem) {

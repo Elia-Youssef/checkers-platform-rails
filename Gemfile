@@ -69,6 +69,16 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console", "4.3.0"
+
+  # Watches the source tree in a background thread so that the reloader does not have to walk
+  # it on every request. Without it Rails falls back to ActiveSupport::FileUpdateChecker,
+  # which globs ten directory trees and stats every file it finds inside the request: measured
+  # on this project's Docker bind mount at 100 to 320 ms of every single request, more than the
+  # whole controller action costs (tests/build/session-5-overhead-pass.md).
+  #
+  # Development only: the production image builds with BUNDLE_WITHOUT="development", and the
+  # production environment does not reload at all.
+  gem "listen", "3.10.0"
 end
 
 group :test do
