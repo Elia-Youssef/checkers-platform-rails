@@ -3,9 +3,14 @@
 #
 # Every environment has a second database, `cable`, because Action Cable runs on Solid Cable
 # everywhere (config/cable.yml). Its schema is db/cable_schema.rb, which bin/rails db:prepare
-# loads the first time the database is created. Production adds the Solid Cache and Solid
-# Queue databases as well; development and test keep the memory cache store and the async
-# queue adapter that Rails configures for them.
+# loads the first time the database is created.
+#
+# Development has a third, `cache`, because the development server runs two Puma workers
+# (WEB_CONCURRENCY in compose.yaml) and the sign-in rate limit counts in Rails.cache: a
+# per-process memory store would give each worker its own counters. Its schema is
+# db/cache_schema.rb, loaded the same way. Production adds `cache` and `queue`. Test keeps the
+# memory cache store, which is what its single-process suite needs, and the async queue
+# adapter Rails configures for it.
 default: &default
   adapter: sqlite3
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
@@ -15,6 +20,13 @@ development:
   primary:
     <<: *default
     database: storage/development.sqlite3
+  # Solid Cache in development as well as in production, because the development server now
+  # runs more than one Puma worker and a per-process memory store would give each worker its
+  # own copy of the sign-in rate limit's counters.
+  cache:
+    <<: *default
+    database: storage/development_cache.sqlite3
+    migrations_paths: db/cache_migrate
   cable:
     <<: *default
     database: storage/development_cable.sqlite3

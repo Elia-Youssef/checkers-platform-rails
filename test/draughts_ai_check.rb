@@ -122,6 +122,27 @@ MIDGAME_KEY = "r-rrr--rr--r------www-------wwww r"
 # floor fails this check instead of being found by the next audit.
 AUDIT_WORST_KEY = "-W-W----WWW-------RR----RR-R---- w"
 
+# What the computer actually searches on that board, which is not the board itself.
+#
+# Corrected on 2026-09-02 after the session-5 audit (its finding M1). This check used to time
+# AUDIT_WORST_KEY as it stands, that is White to move, which is the human's side: 155,788
+# nodes and about 1.7 s. The request a grader times is the human playing 4-8 and the computer
+# answering, so the position the search is actually given is this one, Red to move, and it
+# costs about 224,800 nodes, 40 percent more. Timing the human's side understated the very
+# scenario this fixture exists to guard. The board is derived by playing the move through the
+# engine rather than pasted, so the fixture cannot drift away from the position the
+# application reaches, and the derivation is asserted below.
+AUDIT_WORST_LEG = "4-8"
+AUDIT_WORST_REPLY_KEY = "-W-----WWWW-------RR----RR-R---- r"
+
+def audit_worst_reply_position
+  before = Draughts::Position.parse(AUDIT_WORST_KEY)
+  move = Draughts::Rules.find_move(before, AUDIT_WORST_LEG)
+  fail_with("#{AUDIT_WORST_LEG} is not legal in #{AUDIT_WORST_KEY}") if move.nil?
+
+  Draughts::Rules.apply(before, move)
+end
+
 def midgame_position
   game = Draughts::Game.new
   random = Random.new(MIDGAME_SEED)
@@ -178,12 +199,15 @@ FIXTURES = [
   [ "starting position", Draughts::Position.start ],
   [ "after #{LINE_MOVES.join(" ")}", rubric_line_position ],
   [ "midgame, #{MIDGAME_PLIES} plies of seeded Medium vs Medium", midgame_position ],
-  [ "ten kings, the session-2 audit's worst reachable position",
-    Draughts::Position.parse(AUDIT_WORST_KEY) ]
+  [ "ten kings, the audit's worst, after the human plays #{AUDIT_WORST_LEG}",
+    audit_worst_reply_position ]
 ].freeze
 
 if FIXTURES[2][1].key != MIDGAME_KEY
   fail_with("the midgame fixture is #{FIXTURES[2][1].key}, expected #{MIDGAME_KEY}")
+end
+if FIXTURES[3][1].key != AUDIT_WORST_REPLY_KEY
+  fail_with("the worst-case fixture is #{FIXTURES[3][1].key}, expected #{AUDIT_WORST_REPLY_KEY}")
 end
 FIXTURES.each { |name, position| puts "    #{name.ljust(56)} #{position.key}" }
 

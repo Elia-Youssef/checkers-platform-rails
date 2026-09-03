@@ -7,7 +7,9 @@
 #
 # Seats. A seat is held by a signed-in User or by a browser's guest key, never by both. In a
 # hot-seat match the creating identity holds both seats and everybody else is a viewer with a
-# read-only board.
+# read-only board. In a match against the computer the human holds one seat and the other
+# holds nobody: the computer is not an identity, it is the ai_level column, and #ai_side is
+# simply the seat no one is sitting in.
 class Match < ApplicationRecord
   MODES = %w[ hotseat ai online ].freeze
   STATUSES = %w[ waiting active finished ].freeze
@@ -49,6 +51,7 @@ class Match < ApplicationRecord
   validates :draw_offered_by, inclusion: { in: SIDES }, allow_nil: true
   validates :invite_token, uniqueness: true, allow_nil: true
   validate :seats_hold_one_identity_each
+  validate :ai_level_belongs_to_a_computer_match
   validate :active_match_has_both_seats
   validate :finished_match_names_its_outcome
   validate :active_row_is_not_terminal
@@ -62,6 +65,25 @@ class Match < ApplicationRecord
             red_user: user, white_user: user,
             red_guest_key: (guest_key if user.nil?),
             white_guest_key: (guest_key if user.nil?))
+  end
+
+  # A match against the computer. The human takes the seat of the colour they chose and the
+  # other seat stays empty: what plays it is ai_level, so a match is never waiting for a
+  # second player and no identity can ever be mistaken for the computer.
+  #
+  # It starts from the pinned opening with Red to move like every other match. When the human
+  # chose White the caller plays the computer's first move (Red's) before showing the page, so
+  # the match opens with a move already made; see #play_computer_reply!.
+  def self.open_ai(side:, level:, user: nil, guest_key: nil)
+    raise ArgumentError, "a match needs a user or a guest key" if user.nil? && guest_key.blank?
+    raise ArgumentError, "not a colour: #{side.inspect}" unless SIDES.include?(side.to_s)
+
+    human = side.to_s
+    create!(mode: "ai", status: "active", ai_level: Draughts::AI.level(level).to_s,
+            red_user: (user if human == "red"),
+            white_user: (user if human == "white"),
+            red_guest_key: (guest_key if user.nil? && human == "red"),
+            white_guest_key: (guest_key if user.nil? && human == "white"))
   end
 
   # A square number 1 to 32 out of a form parameter, or Draughts::InvalidPosition.
@@ -104,7 +126,7 @@ class Match < ApplicationRecord
   def sequence_pending? = pending_path.present?
 
   def can_undo?
-    !online? && active? && !sequence_pending? && game.can_undo?
+    !online? && active? && !sequence_pending? && game.can_undo? && undo_ply_count.positive?
   end
 
   def can_resign? = active? && !sequence_pending?
@@ -124,11 +146,15 @@ class Match < ApplicationRecord
   end
 
   # The settings Play again carries: the same mode, and whatever else that mode is played
-  # with. Phase 5 adds the human's colour beside the level here; phase 6 will want the colours
-  # swapped, which is the same one place.
+  # with. Against the computer that is the human's colour and the level, so the next game is
+  # the same game again; phase 6 will want the colours swapped, which is the same one place.
+  # The keys are the names the create form posts, so Play again is that form submitted again.
   def play_again_params
     { mode: mode }.tap do |settings|
-      settings[:ai_level] = ai_level if ai? && ai_level.present?
+      next unless ai?
+
+      settings[:colour] = human_side if human_side
+      settings[:level] = ai_level if ai_level.present?
     end
   end
 
@@ -178,9 +204,53 @@ class Match < ApplicationRecord
     seats_held_by(user: user, guest_key: guest_key).empty?
   end
 
-  # The name shown for a seat: a user's display name, "Guest" for an unregistered player.
+  # The name shown for a seat: a user's display name, "Guest" for an unregistered player,
+  # "Computer (Hard)" for the seat the computer plays.
   def seat_name(side)
+    return computer_name if ai? && side.to_s == ai_side
+
     seat_user(side)&.display_name || (seat_guest_key(side).present? ? "Guest" : "Open seat")
+  end
+
+  # ---- the computer -------------------------------------------------------------------
+
+  # The side the computer plays: the seat nobody is sitting in. nil unless this is a match
+  # against the computer with exactly one seat taken.
+  def ai_side
+    return nil unless ai?
+
+    empty = SIDES.reject { |side| seat_taken?(side) }
+    empty.length == 1 ? empty.first : nil
+  end
+
+  # The side the person plays, the other half of the same question.
+  def human_side
+    return nil unless ai?
+
+    taken = SIDES.select { |side| seat_taken?(side) }
+    taken.length == 1 ? taken.first : nil
+  end
+
+  # "Computer (Hard)": the seat's name, and how the level reaches the page and the log.
+  def computer_name
+    ai_level.present? ? "Computer (#{Draughts::AI.label(ai_level)})" : "Computer"
+  end
+
+  # True while it is the computer's turn. This is a transient state: the reply is played
+  # inside the same request that recorded the human's move, so a match at rest never shows
+  # it. While it is true the human does not hold the acting seat, so the seat rule refuses a
+  # move from them (403) without any extra check.
+  def computer_to_move?
+    ai? && active? && side_to_move == ai_side
+  end
+
+  # The last move row the computer played and searched, or nil. The status panel reads the
+  # depth and the time off it, so the sentence survives a reload and a restart.
+  def last_computer_move
+    return nil unless ai?
+
+    last = move_rows.last
+    last if last && last.side == ai_side && !last.ai_depth.nil?
   end
 
   # ---- transitions --------------------------------------------------------------------
@@ -220,11 +290,15 @@ class Match < ApplicationRecord
     leg
   end
 
-  # Takes back the last completed move. Hot-seat only in this phase; refused online, while a
-  # jump sequence is pending and once the match has finished (the engine refuses the last two
-  # itself, and this adds the online rule the engine cannot know about).
+  # Takes back the last completed move, or, against the computer, the human's last move
+  # together with the computer's reply: two plies in one transaction, so the board comes back
+  # to the position the human was looking at rather than to the computer's turn.
+  #
+  # Refused online, while a jump sequence is pending, once the match has finished, and, in a
+  # match the human plays as White, when the only move on the board is the computer's opening
+  # move as Red: there is no move of the human's to take back yet.
   def undo_last_move!
-    undone = nil
+    undone = []
     write do
       # The state of the match first, so a waiting or finished match is told what it is
       # whatever mode it is in; the online rule only matters for a match that is running.
@@ -234,13 +308,103 @@ class Match < ApplicationRecord
         raise Draughts::IllegalMove, "a jump sequence is pending on square #{game.locked_square}"
       end
 
+      wanted = undo_ply_count
+      if wanted.zero?
+        raise Draughts::IllegalMove,
+              "the computer's opening move cannot be taken back: play a move of your own first"
+      end
+
       current = game
-      undone = current.undo
-      moves.order(:ply).last!.destroy!
-      moves.reset
+      wanted.times do
+        undone << current.undo
+        moves.order(:ply).last!.destroy!
+        moves.reset
+      end
       write_state_from(current)
     end
-    undone
+    undone.first
+  end
+
+  # How many plies one Undo takes back from the row as it now stands: one in hot-seat, and
+  # against the computer as many as it takes to unplay the human's last move, which is two
+  # when the computer has replied and one when it has not (a reply the race check discarded,
+  # so the board is left showing the computer's turn and Undo is the way back).
+  #
+  # Zero means one specific thing: the last move is the computer's and there is no move of the
+  # human's under it, which is the opening move of a game the human plays as White. A match
+  # with no moves at all answers 1, not 0, so that the engine refuses it in the words it uses
+  # everywhere else ("there is no move to undo") instead of being told about an opening move
+  # that was never played.
+  def undo_ply_count
+    return 1 unless ai?
+
+    rows = move_rows
+    return 1 unless rows.last&.side == ai_side
+
+    rows.length >= 2 ? 2 : 0
+  end
+
+  # Plays the computer's move and stores it as one row, whether it is one leg or a whole jump
+  # sequence. Returns the Draughts::AI::Choice, or nil when there was nothing to play.
+  #
+  # The search runs outside the transaction on purpose. It can take two seconds at Hard, and
+  # Rails opens SQLite transactions as BEGIN IMMEDIATE, so searching inside one would lock
+  # every other writer out of the whole database for that long. The row is therefore read,
+  # released, searched against, and then re-read inside the transaction that writes: if
+  # anything moved in between (another request already played this reply, an undo took the
+  # position back, the match ended), the position and the ply count no longer match the ones
+  # the move was computed for and the reply is dropped rather than applied to a board it was
+  # never legal on. Draughts::Game#play validates it against the position a second time in any
+  # case, so the engine, not this method, is the last word on legality.
+  def play_computer_reply!
+    return nil unless computer_to_move? && !sequence_pending?
+
+    searched = game
+    key = searched.position.key
+    plies = searched.plies
+    choice = Draughts::AI.choose(searched, level: ai_level, random: self.class.ai_random(plies))
+
+    applied = false
+    write do
+      if computer_to_move? && !sequence_pending? &&
+         game.position.key == key && game.plies == plies
+        record_computer_move(game, choice)
+        applied = true
+      end
+    end
+
+    if applied
+      Rails.logger.info("[Match #{id}] computer move: #{choice.summary}")
+      choice
+    else
+      Rails.logger.info(
+        "[Match #{id}] computer move discarded, the match moved on during the search: #{choice.summary}")
+      nil
+    end
+  rescue Draughts::Error, ActiveRecord::ActiveRecordError => e
+    # A reply that cannot be played must not become a refusal of the human's move, which the
+    # row has already accepted, so it is logged and dropped and nil comes back. The row is
+    # then left on the computer's turn, which the controls partial explains and Undo undoes.
+    # Nothing reachable raises here: the engine was asked about the very position it then
+    # played on, and the save is the same one every other transition makes. Anything that is
+    # not one of these two families is a programming error and is left to raise.
+    Rails.logger.error("[Match #{id}] the computer could not reply: #{e.class}: #{e.message}")
+    nil
+  end
+
+  # The random source for one computer move. A fresh Random every time in development and in
+  # production, so games vary as TASK-BRIEF 1.4 requires; a seeded one when
+  # config.x.ai_random_seed holds an integer, which is how the tests get the same game twice.
+  # The ply goes into the seed so a seeded game is still a varied game and not one move
+  # repeated whenever a position recurs.
+  #
+  # An unset config.x key answers with an empty ActiveSupport::OrderedOptions, not with nil,
+  # so the seed is read through Integer() and anything that is not a number means "no seed".
+  def self.ai_random(ply = 0)
+    seed = Integer(Rails.configuration.x.ai_random_seed)
+    Random.new(seed + ply)
+  rescue TypeError, ArgumentError
+    Random.new
   end
 
   # Ends the match as a win for the other side. side is the side that resigns: in hot-seat
@@ -258,6 +422,20 @@ class Match < ApplicationRecord
   end
 
   private
+    # The computer's chosen move applied to the reloaded game and written as one row, jump
+    # sequence and all. Draughts::Game#play refuses anything the position does not allow, so
+    # a move computed against a stale board cannot be stored even if the checks above missed.
+    def record_computer_move(current, choice)
+      move = current.play(choice.move)
+      moves.create!(ply: current.plies, side: ai_side, pdn: move.pdn,
+                    origin: move.origin, landings: move.landings,
+                    captures: move.captures, promoted: move.promotion?,
+                    position_after: current.position.board_string,
+                    ai_depth: choice.depth, ai_nodes: choice.nodes,
+                    ai_elapsed_ms: (choice.elapsed * 1000).round)
+      write_state_from(current)
+    end
+
     def restored_game
       Draughts::Game.restore(
         position: position, side: side_to_move, quiet_plies: quiet_plies,
@@ -341,11 +519,28 @@ class Match < ApplicationRecord
       end
     end
 
+    # An active match needs somebody in every seat a person plays. Against the computer that
+    # is one seat: the other is deliberately empty, because ai_level plays it, and a seat that
+    # held both an identity and the computer would make "who may act here" ambiguous.
     def active_match_has_both_seats
       return unless status == "active"
 
-      SIDES.each do |side|
-        errors.add(:base, "an active match needs a player in the #{side} seat") unless seat_taken?(side)
+      if ai?
+        errors.add(:base, "a match against the computer needs a player in one seat") if human_side.nil?
+      else
+        SIDES.each do |side|
+          errors.add(:base, "an active match needs a player in the #{side} seat") unless seat_taken?(side)
+        end
+      end
+    end
+
+    # ai_level is what plays the empty seat, so an ai match without one has no opponent, and a
+    # level on a match nobody plays the computer in would name an opponent that is not there.
+    def ai_level_belongs_to_a_computer_match
+      if ai? && ai_level.blank?
+        errors.add(:ai_level, "is required in a match against the computer")
+      elsif !ai? && ai_level.present?
+        errors.add(:ai_level, "belongs only to a match against the computer")
       end
     end
 

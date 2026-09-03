@@ -27,6 +27,21 @@
       A jump is in progress. Finish it with the piece on square <%= game.locked_square %>:
       Undo and Resign come back when the sequence ends.
     </p>
+  <% elsif match.computer_to_move? %>
+    <%# The computer answers inside the request that recorded the human's move, so a match at
+        rest never sits here. It can only be reached when that reply could not be played and
+        was logged and dropped, which must not leave the board with no way forward: Undo takes
+        the human's move back so it can be played again. %>
+    <p class="controls__note" role="note">
+      <%= match.computer_name %> has not answered your last move. Undo takes it back so you
+      can play again.
+    </p>
+    <div class="button-row">
+      <% if match.can_undo? %>
+        <%= button_to "Undo", match_undo_path(match), class: "button button--quiet" %>
+      <% end %>
+      <%= link_to "Resign", new_match_resignation_path(match), class: "button button--quiet" %>
+    </div>
   <% else %>
     <div class="button-row">
       <% if match.can_undo? %>

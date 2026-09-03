@@ -16,13 +16,20 @@
     <% end %>
   </p>
 
+  <%# What the computer's search did for its last move, read off the move row rather than
+      from a flash, so it is still there after a reload, in a second browser and after a
+      container restart. RUBRIC.md item 10 asks for the reached depth to be readable. %>
+  <% if (searched = match.last_computer_move) %>
+    <p class="status__search"><%= computer_move_sentence(match, searched) %></p>
+  <% end %>
+
   <ul class="players">
     <% Match::SIDES.each do |side| %>
       <li class="player<%= " player--turn" if match.active? && match.side_to_move == side %>">
         <span class="player__swatch player__swatch--<%= side %>" aria-hidden="true"></span>
         <span class="player__side"><%= side_label(side) %></span>
         <span class="player__name"><%= match.seat_name(side) %></span>
-        <span class="player__count"><%= shown.count(Draughts::Side.cast(side)) %> pieces</span>
+        <span class="player__count"><%= pluralize(shown.count(Draughts::Side.cast(side)), "piece") %></span>
       </li>
     <% end %>
   </ul>

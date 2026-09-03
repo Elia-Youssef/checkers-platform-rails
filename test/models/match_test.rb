@@ -532,7 +532,10 @@ class MatchTest < ActiveSupport::TestCase
     match.mode = "ai"
     match.ai_level = "hard"
     assert_equal "Match against the computer (Hard)", match.heading
-    assert_equal({ mode: "ai", ai_level: "hard" }, match.play_again_params)
+    # The keys are the names the create form posts. This row is a hot-seat row wearing the
+    # ai mode, so both seats are taken and it names no human colour; a real computer match
+    # carries one, which ComputerMatchTest pins.
+    assert_equal({ mode: "ai", level: "hard" }, match.play_again_params)
   end
 
   # ---- H2 and L3: one sentence per state, and it is truthful ---------------------------
