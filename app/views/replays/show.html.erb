@@ -1,0 +1,81 @@
+<%# The replay of one match at one ply. Everything on this page came out of the database: the
+    board is the position the engine wrote when that move was played, and the move list is the
+    PDN it wrote with it. Nothing here subscribes to anything, nothing broadcasts, and the four
+    controls are ordinary links to ordinary addresses, so the whole page works with JavaScript
+    switched off and a ply can be linked to. %>
+<% content_for :title, "Replay: #{@match.heading}" %>
+
+<h1 class="match__heading">Replay: <%= @match.heading %></h1>
+
+<div class="match">
+  <div class="match__board">
+    <%= render "matches/static_board", match: @match, position: @position, tinted: @tinted,
+          label: "Checkers board after ply #{@ply} of #{@total}, Red at the bottom" %>
+  </div>
+
+  <div class="match__aside">
+    <div class="replay">
+      <h2 class="replay__heading">
+        <%= @match.seat_name("red") %> (Red) against <%= @match.seat_name("white") %> (White)
+      </h2>
+
+      <p class="replay__ply" role="status"><%= replay_ply_sentence(@ply, @total) %>.</p>
+
+      <p class="replay__turn">
+        <% if @row.nil? && @total.zero? %>
+          No move has been played in this match yet.
+        <% elsif @ply == @total && @match.finished? %>
+          <%= result_sentence(@match) %>.
+        <% else %>
+          <%= @row ? "#{side_label(@row.side)} played #{@row.pdn}." : "The opening position." %>
+          <%= side_label(@position.side_to_move) %> to move.
+        <% end %>
+      </p>
+
+      <%# The four controls, as plain links to ply addresses. At either end of the game the two
+          that would go nowhere are inert: still readable, not focusable, and carrying
+          aria-disabled so a screen reader says so. %>
+      <nav class="replay__controls" aria-label="Replay controls">
+        <% [ [ "First", 0, @ply.positive? ],
+             [ "Previous", @ply - 1, @ply.positive? ],
+             [ "Next", @ply + 1, @ply < @total ],
+             [ "Last", @total, @ply < @total ] ].each do |label, target, enabled| %>
+          <% if enabled %>
+            <%= link_to label, match_replay_path(@match, ply: target),
+                  class: "button button--quiet replay__control",
+                  data: { control: label.downcase } %>
+          <% else %>
+            <span class="button button--quiet replay__control replay__control--inert"
+                  aria-disabled="true" data-control="<%= label.downcase %>"><%= label %></span>
+          <% end %>
+        <% end %>
+      </nav>
+
+      <ul class="players replay__players">
+        <% Match::SIDES.each do |side| %>
+          <li class="player">
+            <span class="player__swatch player__swatch--<%= side %>" aria-hidden="true"></span>
+            <span class="player__side"><%= side_label(side) %></span>
+            <span class="player__name"><%= @match.seat_name(side) %></span>
+            <span class="player__count">
+              <%= pluralize(@position.count(Draughts::Side.cast(side)), "piece") %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+
+      <p class="replay__stored">
+        Stored position:
+        <code class="replay__position"><%= @position.board_string %></code>
+      </p>
+    </div>
+
+    <%= render "matches/moves", pairs: move_pairs_from_rows(@rows), highlight: @ply %>
+
+    <div class="button-row">
+      <%= link_to "Back to the match", match_path(@match), class: "button button--quiet" %>
+      <%= link_to "Export PDN", match_path(@match, format: :pdn), class: "button button--quiet" %>
+      <%= link_to "My games", matches_path, class: "button button--quiet" %>
+    </div>
+  </div>
+</div>

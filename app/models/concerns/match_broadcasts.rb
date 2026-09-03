@@ -98,6 +98,29 @@ module MatchBroadcasts
     nil
   end
 
+  # The key of the silence flag below, in Rails' own per-thread (and per-fiber) store.
+  SILENCE_KEY = :match_broadcasts_silenced
+
+  class_methods do
+    # Runs the block with broadcasting off. db/seeds.rb replays a whole game through the same
+    # public move path the application uses, and every leg of it would otherwise render the
+    # match three times and write a Solid Cable row for an audience that does not exist: about
+    # a second of work per seeded game, in a script that has no browsers listening. Nothing
+    # else uses this, the default is off, and it is per thread, so one Puma thread cannot
+    # silence another's broadcasts.
+    def silence_broadcasts
+      previous = ActiveSupport::IsolatedExecutionState[SILENCE_KEY]
+      ActiveSupport::IsolatedExecutionState[SILENCE_KEY] = true
+      yield
+    ensure
+      ActiveSupport::IsolatedExecutionState[SILENCE_KEY] = previous
+    end
+
+    def broadcasts_silenced?
+      ActiveSupport::IsolatedExecutionState[SILENCE_KEY] == true
+    end
+  end
+
   # Render this match once per audience and push it. Called by every transition after its
   # transaction has committed, so nothing is ever broadcast for a write that rolled back.
   #
@@ -105,6 +128,7 @@ module MatchBroadcasts
   # everyone, and only the seat the rendering is for changes.
   def broadcast_state!
     return self unless persisted?
+    return self if self.class.broadcasts_silenced?
 
     current = game
     broadcast_audiences.each do |audience|

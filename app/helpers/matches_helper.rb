@@ -110,14 +110,74 @@ module MatchesHelper
   # game whose first move was White's opens with an empty Red slot.
   def move_pairs(game)
     entries = game.moves.each_with_index.map { |move, index| MoveEntry.new(index + 1, move.pdn) }
-    entries.unshift(nil) if first_mover(game) == Draughts::Side::WHITE
-    entries.each_slice(2).with_index(1).map { |(red, white), number| [ number, red, white ] }
+    numbered_pairs(entries, first_mover(game))
+  end
+
+  # The same list built from the stored move rows instead of from a game. The replay page
+  # reads the history out of the database and never rebuilds the engine's game, so it needs
+  # this shape; the two agree because the rows carry the PDN the engine wrote.
+  def move_pairs_from_rows(rows)
+    entries = rows.map { |row| MoveEntry.new(row.ply, row.pdn) }
+    numbered_pairs(entries, Draughts::Side.cast(rows.first&.side || "red"))
+  end
+
+  # ---- My games ---------------------------------------------------------------------------
+
+  # The mode as one word for a list: "Hot-seat", "Computer", "Online".
+  def mode_label(match)
+    case match.mode
+    when "hotseat" then "Hot-seat"
+    when "ai" then "Computer"
+    when "online" then "Online"
+    else match.mode.to_s.capitalize
+    end
+  end
+
+  # Who this identity played, from the seats it holds: the other seat's name, or its own name
+  # in a hot-seat match, where one identity holds both seats.
+  def opponent_name(match, seats)
+    seats = Array(seats).map(&:to_s)
+    return match.seat_name(Match::SIDES.first) if seats.length != 1
+
+    match.seat_name(Draughts::Side.opponent(Draughts::Side.cast(seats.first)).to_s)
+  end
+
+  # Where this match stands, in words: the result and its reason once it is over, and what it
+  # is waiting for until then.
+  def state_sentence(match)
+    if match.finished?
+      result_sentence(match)
+    elsif match.waiting?
+      "Waiting for a second player"
+    elsif match.cancelled?
+      "Cancelled"
+    else
+      "In play, #{turn_sentence(match)}"
+    end
+  end
+
+  # ---- replay -----------------------------------------------------------------------------
+
+  # "The starting position, before any move" or "After ply 7 of 103", which is the ply and the
+  # total in words.
+  def replay_ply_sentence(ply, total)
+    return "The starting position, before any of the #{pluralize(total, "move")}" if ply.zero?
+
+    "After ply #{ply} of #{total}"
   end
 
   private
     # Which side played this game's first move, from the game's own history.
     def first_mover(game)
       game.plies.even? ? game.side_to_move : Draughts::Side.opponent(game.side_to_move)
+    end
+
+    # [number, red entry, white entry] per row, Red first. A game whose first move was White's
+    # opens with an empty Red slot, which the list writes as an ellipsis.
+    def numbered_pairs(entries, first_side)
+      entries = entries.dup
+      entries.unshift(nil) if first_side == Draughts::Side::WHITE
+      entries.each_slice(2).with_index(1).map { |(red, white), number| [ number, red, white ] }
     end
 
     def win_reason(match)

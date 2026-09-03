@@ -8,7 +8,14 @@ Rails.application.routes.draw do
   # Matches. The board is server state: /matches/:id?selected=11 renders that piece's legal
   # targets, one POST to .../moves plays one leg of a move, and the confirmation step for a
   # resignation is a page of its own so that resigning needs no JavaScript.
-  resources :matches, only: %i[ create show ] do
+  # /matches is My games: the matches the current identity (a signed-in user, or a browser's
+  # guest key) holds a seat in. /matches/:id.pdn is the same match as a downloadable PDN file,
+  # which is why show answers two formats.
+  resources :matches, only: %i[ index create show ] do
+    # The replay: the board after ply N, as a plain URL (/matches/:match_id/replay?ply=3), so a
+    # position can be linked to. It renders from the stored move rows alone and subscribes to
+    # nothing.
+    resource :replay, only: :show
     resources :moves, only: :create
     resource :undo, only: :create
     resource :resignation, only: %i[ new create ]

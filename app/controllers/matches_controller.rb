@@ -1,16 +1,48 @@
 class MatchesController < ApplicationController
   include MatchScoped
 
-  skip_before_action :set_match, only: :create
+  skip_before_action :set_match, only: %i[ index create ]
 
-  # The match page. Anyone may open it: a player sees the controls for the seats they hold,
-  # everybody else sees the same board read-only with a note (rubric 54).
+  # My games: the matches this identity holds a seat in, newest first (TASK-BRIEF 1.7).
+  #
+  # Identity is whoever is asking: a signed-in user, or the guest key in this browser's
+  # cookie. A match somebody only looked at is not theirs and is not here; a visitor with
+  # neither sees the empty state.
+  #
+  # Three queries whatever the number of rows: the matches, the two seat associations
+  # preloaded, and one grouped count of the move rows. Nothing in the view touches the
+  # database (a query-count test pins it).
+  def index
+    @matches = Match.for_identity(**match_identity).newest_first
+      .includes(:red_user, :white_user).to_a
+    @move_counts = Move.where(match: @matches).group(:match_id).count
+    @seats_by_match = @matches.to_h { |match| [ match.id, match.seats_held_by(**match_identity) ] }
+  end
+
+  # The match page, and the same match as a PDN file.
+  #
+  # HTML: anyone may open it: a player sees the controls for the seats they hold, everybody
+  # else sees the same board read-only with a note (rubric 54).
   #
   # ?selected=11 is the whole selection mechanism with JavaScript off: the server renders that
   # piece's legal targets, computed by the engine, as forms that post one leg.
+  #
+  # PDN: /matches/:id.pdn downloads the game (TASK-BRIEF 1.7). It has the same visibility as
+  # the page it exports, which is to say anyone with the address, and it carries no invite
+  # token and no control: it is the move list, which every viewer can already read.
   def show
-    @game = @match.game
-    @selected = selected_square
+    respond_to do |format|
+      format.html do
+        @game = @match.game
+        @selected = selected_square
+      end
+      format.pdn do
+        send_data @match.pdn(site: request.host_with_port),
+                  type: "text/plain; charset=utf-8",
+                  disposition: "attachment",
+                  filename: @match.pdn_filename
+      end
+    end
   end
 
   # Start a game: hot-seat, against the computer, or online.

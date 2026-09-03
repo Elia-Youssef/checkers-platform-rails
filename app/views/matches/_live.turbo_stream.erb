@@ -19,6 +19,7 @@
       locals: { match: match, game: game } %>
 <%= turbo_stream.replace Match::INVITE_ID, partial: "matches/invite",
       locals: { match: match, seats: seats, link: nil } %>
-<%= turbo_stream.replace Match::MOVES_ID, partial: "matches/moves", locals: { game: game } %>
+<%= turbo_stream.replace Match::MOVES_ID, partial: "matches/moves",
+      locals: { pairs: move_pairs(game), highlight: game.plies } %>
 <%= turbo_stream.replace Match::CONTROLS_ID, partial: "matches/controls",
       locals: { match: match, game: game, seats: seats } %>

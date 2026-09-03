@@ -36,9 +36,10 @@
         <%= link_to "Checkers", root_path, class: "masthead__brand" %>
 
         <nav class="masthead__nav" aria-label="Main">
-          <%# My games arrives with the history pages in a later phase. It is inert rather
-              than a link so that nothing in the navigation leads to a dead page. %>
-          <span class="masthead__link masthead__link--pending" aria-disabled="true">My games</span>
+          <%# My games is there for everyone, signed in or not: a guest's matches are listed
+              under the key in their browser's cookie, and become the account's the moment
+              they sign up or sign in. %>
+          <%= link_to "My games", matches_path, class: "masthead__link" %>
 
           <% if authenticated? %>
             <span class="masthead__identity"><%= Current.user&.display_name %></span>

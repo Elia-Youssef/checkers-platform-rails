@@ -229,6 +229,29 @@ class MatchBroadcastsTest < ActiveSupport::TestCase
     assert_operator broadcasts(page_name).length, :>=, 1
   end
 
+  # db/seeds.rb replays a whole game through the public move path with nobody listening.
+  test "silence_broadcasts stops the broadcasts inside the block and only inside it" do
+    match = online
+
+    silenced = broadcasts_from(match) do
+      Match.silence_broadcasts { match.play_leg!(11, 15) }
+    end
+    assert_equal [ 0, 0, 0 ], silenced.values.map(&:length), "nothing may be published"
+    assert_equal [ "11-15" ], match.reload.moves.map(&:pdn), "but the move was still played"
+    assert_not Match.broadcasts_silenced?, "the flag is put back"
+
+    after = broadcasts_from(match) { match.play_leg!(22, 18) }
+    assert_equal 5, after.fetch("viewer").length, "broadcasting resumes after the block"
+  end
+
+  test "silence_broadcasts puts the flag back even when the block raises" do
+    assert_raises(Draughts::IllegalMove) do
+      Match.silence_broadcasts { online.play_leg!(11, 12) }
+    end
+
+    assert_not Match.broadcasts_silenced?
+  end
+
   test "the stream name is one string per match and audience" do
     match = online
     other = online

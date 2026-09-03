@@ -47,8 +47,29 @@ class ComputerTest < ApplicationSystemTestCase
   # latest entry in the list. The wait is Capybara's, so a reply that never arrived fails
   # here rather than somewhere later.
   def play_against(human, reply)
-    human.split(/[-x]/).map(&:to_i).each { |number| click_square(number) }
+    click_move(human)
     assert_selector ".moves__move--latest", text: reply
+  end
+
+  # Clicks the squares of one whole move, one leg at a time, asserting before every click that
+  # the board it is about to land on is the board that click belongs to.
+  #
+  # Selecting a piece is painted by the Stimulus controller inside the page, so its
+  # destinations appear at once; every further leg of a jump sequence is a request whose answer
+  # replaces the board fragment, and Capybara resolves the next square against whatever board
+  # is in the DOM at that instant. On the board that has not been replaced yet the continuation
+  # square is not a target, so the click only clears the selection: the leg is lost, the move
+  # never completes and the reply never arrives. That is the sixth move of the first test
+  # failing about one run in three (session-7 audit, finding H1, measured at 5 of 11 seeds).
+  # Waiting for the continuation square to be offered is the same wait the multi-jump lower
+  # down in this file already makes by hand.
+  def click_move(pdn)
+    squares = pdn.split(/[-x]/).map(&:to_i)
+    squares.each_cons(2) do |from, to|
+      click_square(from)
+      assert_selector "##{Match::BOARD_ID} button.square--target[data-square='#{to}']"
+    end
+    click_square(squares.last)
   end
 
   test "a game against Easy answers every move in the same page, through a multi-jump" do
@@ -130,6 +151,7 @@ class ComputerTest < ApplicationSystemTestCase
   test "Play again starts the same colour and level again" do
     first = start_computer(colour: "white", level: "easy")
     click_link "Resign"
+    assert_selector "h1", text: "Resign this match?"
     click_button "Resign"
     assert_selector ".status__headline--result", text: "Red wins by resignation"
 

@@ -72,6 +72,7 @@ class HotseatTest < ApplicationSystemTestCase
     assert_equal 0, match.reload.moves.count, "selecting wrote something to the database"
 
     click_square(11)
+    assert_selector "button[data-square='15'].square--target"
     click_square(15)
     assert_selector ".moves__move--latest", text: "11-15"
     assert_equal 1, match.reload.moves.count
@@ -126,8 +127,10 @@ class HotseatTest < ApplicationSystemTestCase
 
     # And it can be played again.
     click_square(24)
+    assert_selector "button[data-square='15'].square--target"
     click_square(15)
     assert_selector ".controls__note", text: "A jump is in progress"
+    assert_selector "button[data-square='8'].square--target"
     click_square(8)
     assert_selector ".moves__move--latest", text: "24x15x8"
 
@@ -155,6 +158,7 @@ class HotseatTest < ApplicationSystemTestCase
     first = start_hotseat
     play_quiet("11-15")
     click_link "Resign"
+    assert_selector "h1", text: "Resign this match?"
     click_button "Resign"
 
     click_button "Play again"

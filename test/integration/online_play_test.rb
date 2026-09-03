@@ -464,6 +464,62 @@ class OnlinePlayTest < ActionDispatch::IntegrationTest
     assert_select grace.html_document.root, ".controls__turn", text: /Waiting for Ada to move/
   end
 
+  # One rule for a match that is not running: a seat holder is refused with 422 and the sentence
+  # that names the state, whichever colour they hold and whichever colour happened to be to move
+  # when it stopped, and a session holding no seat is 403 as before. The colour matters because
+  # side_to_move is frozen at the end: before this, the seat that was to move got 422 and the
+  # other seat got 403 for the same act (session-7 audit, finding L3).
+  test "on a finished match either seat holder is 422 with the state named, a stranger is 403" do
+    match, ada, grace = active_match
+    play(ada, match, "11-15")
+    grace.post match_resignation_path(match)
+    grace.assert_response :redirect
+    match.reload
+    assert_equal "finished", match.status
+    assert_equal "white", match.side_to_move,
+      "the point of this test is that the colour to move at the end is not the one asking"
+    before = match.attributes
+
+    { "Red" => ada, "White" => grace }.each do |colour, browser|
+      refusals = {
+        "a move" => -> { browser.post match_moves_path(match), params: { from: 11, to: 15 } },
+        "an undo" => -> { browser.post match_undo_path(match) },
+        "the resignation page" => -> { browser.get new_match_resignation_path(match) },
+        "a resignation" => -> { browser.post match_resignation_path(match) },
+        "a draw offer" => -> { browser.post match_draw_offer_path(match) },
+        "a draw acceptance" => -> { browser.post match_draw_accept_path(match) },
+        "a draw refusal" => -> { browser.post match_draw_decline_path(match) }
+      }
+
+      refusals.each do |what, act|
+        act.call
+        assert_equal 422, browser.response.status, "#{what} by #{colour} on a finished match"
+        assert_select browser.html_document.root, ".flash--alert", text: /already finished/
+      end
+    end
+
+    stranger = sign_in(users(:three))
+    stranger.post match_moves_path(match), params: { from: 11, to: 15 }
+    assert_equal 403, stranger.response.status, "no seat is still 403, not 422"
+    assert_predicate stranger.response.body, :empty?
+
+    assert_equal before, match.reload.attributes
+  end
+
+  test "on a cancelled match the seat holder is 422 and the sentence says it was cancelled" do
+    ada = sign_in(users(:one))
+    match = create_online(ada)
+    ada.post match_cancellation_path(match)
+    ada.assert_response :redirect
+    before = match.reload.attributes
+
+    ada.post match_moves_path(match), params: { from: 11, to: 15 }
+
+    assert_equal 422, ada.response.status
+    assert_select ada.html_document.root, ".flash--alert", text: /was cancelled/
+    assert_equal before, match.reload.attributes
+  end
+
   # ---- draw offers (rubric 25) ---------------------------------------------------------
 
   test "a draw offer lifecycle: offer, refuse a second, decline, clear on a move, accept" do

@@ -7,6 +7,7 @@ class UndosController < ApplicationController
   include MatchScoped
 
   before_action :require_seat
+  before_action :require_active_match
 
   def create
     @match.undo_last_move!
