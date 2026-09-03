@@ -33,3 +33,8 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# The secret the README's alternative production recipe writes here, for people who run the
+# production image without the credentials key. It signs cookies, so it belongs beside the
+# master key rather than in a commit.
+/checkers.secret
+

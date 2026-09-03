@@ -17,9 +17,16 @@ class OnlineTest < ApplicationSystemTestCase
   # The longest an update is allowed to take to cross from one browser to the other.
   LIVE_BUDGET = 2.0
 
-  # Every wait this test measured, printed at the end so the numbers are in the CI log.
-  def self.samples
-    @samples ||= []
+  # Every wait one test measured, printed by that test's own teardown so the numbers reach the
+  # CI log. A Minitest.after_run hook used to do it and stopped doing it: once this suite passed
+  # Rails' 50 test parallelization threshold it forks workers, and after_run runs only in the
+  # parent process, where nothing was ever measured. Measured on this 52 test suite before the
+  # teardown below was written: 4 workers printed no summary at all, PARALLEL_WORKERS=1 printed
+  # 11 waits. A forked worker writes to the parent's stdout, so a test that prints its own
+  # numbers reaches the CI log either way, and the aggregate is per test because under workers
+  # no single process sees every wait.
+  def live_samples
+    @live_samples ||= []
   end
 
   def square(number)
@@ -53,7 +60,7 @@ class OnlineTest < ApplicationSystemTestCase
       Capybara.using_wait_time(LIVE_BUDGET + 3) { yield }
     end
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-    self.class.samples << [ what, elapsed ]
+    live_samples << [ what, elapsed ]
     assert_operator elapsed, :<, LIVE_BUDGET,
       "#{what} took #{format('%.3f', elapsed)} s to reach the other browser, budget #{LIVE_BUDGET} s"
     elapsed
@@ -68,12 +75,16 @@ class OnlineTest < ApplicationSystemTestCase
     assert_selector ".moves__move--latest", text: pdn
   end
 
-  Minitest.after_run do
-    next if OnlineTest.samples.empty?
+  # Runs after every test in this file, passing or failing, in whichever process ran it.
+  teardown do
+    next if live_samples.empty?
 
-    puts "\n    [live updates] #{OnlineTest.samples.length} measured waits, " \
-         "max #{format('%.3f', OnlineTest.samples.map(&:last).max)} s, budget #{LIVE_BUDGET} s"
-    OnlineTest.samples.each { |what, seconds| puts "      #{format('%.3f', seconds)} s  #{what}" }
+    counted = "#{live_samples.length} measured wait#{"s" unless live_samples.one?}"
+    summary = +"\n    [live updates] #{name}: #{counted}, " \
+      "max #{format('%.3f', live_samples.map(&:last).max)} s, budget #{LIVE_BUDGET} s\n"
+    live_samples.each { |what, seconds| summary << "      #{format('%.3f', seconds)} s  #{what}\n" }
+    # One write per test, so four workers printing at once cannot interleave inside a block.
+    $stdout.write(summary)
   end
 
   # ---- rubric 11, 19, 25, 43: create, join, move, move back, draw -----------------------

@@ -27,5 +27,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=#{WINDOW_SIZE.join(",")}")
+    # Ask Chromium to keep its console log where the driver can read it back. Nothing depends
+    # on it except the content security policy test, which reads the log to prove that no page
+    # produced a violation; a policy that quietly blocked a script would otherwise look exactly
+    # like a page that had no script to run.
+    options.add_option("goog:loggingPrefs", { browser: "ALL" })
   end
 end

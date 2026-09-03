@@ -40,9 +40,12 @@
         <span class="player__name"><%= match.seat_name(side) %></span>
         <%# A seat nobody holds has no piece count: the men are on the board, but "Open seat,
             12 pieces" reads as though somebody were playing them (session-6 audit, finding L3;
-            the cancelled case came from the diff review's out-of-scope list). %>
-        <% if (match.waiting? || match.cancelled?) && !match.seat_taken?(side) %>
+            the cancelled case came from the diff review's out-of-scope list). A cancelled match
+            is not waiting for anybody either, so it says what actually happened. %>
+        <% if match.waiting? && !match.seat_taken?(side) %>
           <span class="player__count player__count--empty">waiting to join</span>
+        <% elsif match.cancelled? && !match.seat_taken?(side) %>
+          <span class="player__count player__count--empty">nobody joined</span>
         <% else %>
           <span class="player__count"><%= pluralize(shown.count(Draughts::Side.cast(side)), "piece") %></span>
         <% end %>

@@ -5,5 +5,7 @@
   <label class="join-form__label" for="invite">Invite link or code</label>
   <%= text_field_tag :invite, invite, id: "invite", class: "join-form__field",
         placeholder: "http://localhost:3000/join/...", autocomplete: "off", spellcheck: "false" %>
-  <%= submit_tag "Join the match", class: "button", name: nil %>
+  <%# A button element for the same reason as the two on the home page: this row is a flex
+      box, a submit input is allowed to shrink in one and cannot wrap its label. %>
+  <%= button_tag "Join the match", type: :submit, class: "button", name: nil %>
 <% end %>

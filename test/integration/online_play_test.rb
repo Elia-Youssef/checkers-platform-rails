@@ -192,6 +192,24 @@ class OnlinePlayTest < ActionDispatch::IntegrationTest
     assert_nil match.white_user
   end
 
+  # The players panel of a match nobody has joined. The open seat has no piece count (the men
+  # are on the board, but "Open seat, 12 pieces" reads as though somebody were playing them),
+  # and the sentence has to match the state: a cancelled match is not waiting for anybody.
+  test "the open seat says what it is waiting for, and a cancelled match says nobody joined" do
+    ada = sign_in(users(:one))
+    match = create_online(ada, colour: "red")
+
+    ada.get match_path(match)
+    assert_select ada.html_document.root, ".player__count--empty", text: "waiting to join"
+    assert_select ada.html_document.root, ".player__count", text: /piece/, count: 1
+
+    ada.post match_cancellation_path(match)
+    ada.get match_path(match)
+    assert_select ada.html_document.root, ".player__count--empty", text: "nobody joined"
+    assert_select ada.html_document.root, ".player__count--empty", text: "waiting to join", count: 0
+    assert_select ada.html_document.root, ".player__count", text: /piece/, count: 1
+  end
+
   test "a match that has been joined can no longer be cancelled" do
     match, ada, = active_match
 
