@@ -86,6 +86,17 @@ jobs:
         with:
           bundler-cache: true
 
+      # The four steps below are bin/ci's test steps, in bin/ci's order. bin/ci (config/ci.rb)
+      # is the gate this project is actually run through, in the development container; this
+      # workflow exists so that the same list runs on a pull request, and the two must not
+      # drift. The engine steps come first because they are the fastest and the most specific:
+      # a plain Ruby process with no Rails in it.
+      - name: Run the Draughts engine suite with Rails not loaded
+        run: ruby -Ilib -Itest test/draughts_runner.rb
+
+      - name: Check the computer opponent's strength and timing
+        run: ruby --yjit -Ilib -Itest test/draughts_ai_check.rb
+
       - name: Run tests
         env:
           RAILS_ENV: test
@@ -93,6 +104,13 @@ jobs:
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare test
+
+      # Loading db/seeds.rb on a clean database is the only way to know that the seed still
+      # runs; db:test:prepare afterwards purges the rows it left, as it does in bin/ci.
+      - name: Run the seeds on a clean database
+        env:
+          RAILS_ENV: test
+        run: bin/rails db:seed:replant db:test:prepare
 
   system-test:
     runs-on: ubuntu-latest

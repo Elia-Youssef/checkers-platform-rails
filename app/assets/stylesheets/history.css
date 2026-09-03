@@ -82,6 +82,78 @@
   margin-left: var(--space-3);
 }
 
+/* Narrow viewports: the five columns become one stacked card per game.
+ *
+ * Five columns of prose do not fit a 360 px screen: measured before this block, the table
+ * forced the document to 626 px against a 360 px viewport, so the whole page scrolled
+ * sideways. Below 40rem every part of the table becomes a block, the header row is hidden and
+ * each cell prints its column name from data-label, which is what keeps the values readable
+ * without a header to line them up under. The markup is unchanged, so the table is still a
+ * table for anything that reads the DOM, and the role attributes in the view keep it one for
+ * the accessibility tree, which a display change would otherwise flatten.
+ */
+@media (max-width: 40rem) {
+  .games,
+  .games caption,
+  .games tbody,
+  .games tr,
+  .games th,
+  .games td {
+    display: block;
+  }
+
+  .games {
+    border-radius: var(--radius);
+  }
+
+  /* The column names live in the cells below at this width. */
+  .games thead {
+    display: none;
+  }
+
+  .games__row {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .games tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .games__row th,
+  .games__row td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .games__mode {
+    white-space: normal;
+    font-size: 1.0625rem;
+    margin-bottom: var(--space-2);
+  }
+
+  /* "Opponent Guest" reads as a pair, so the label is quiet and the value is not. */
+  .games__row td::before {
+    content: attr(data-label) " ";
+    display: inline-block;
+    min-width: 5.5rem;
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .games__row td {
+    margin-top: var(--space-1);
+  }
+
+  .games__state,
+  .games__count,
+  .games__history {
+    white-space: normal;
+  }
+}
+
 /* Replay ------------------------------------------------------------------- */
 
 .replay {

@@ -6,7 +6,12 @@ require "application_system_test_case"
 # anyway: the four controls are ordinary links, so a browser that runs every script we ship
 # still steps through the game one ply at a time and a pasted ply address opens the same
 # position.
-class ReplayTest < ApplicationSystemTestCase
+# The class is ReplaySystemTest rather than ReplayTest so that it does not collide with the
+# integration test of the same page. bin/ci runs `bin/rails test` and `bin/rails test:system`
+# as two steps and never loads both files into one process, but a reader who names both files
+# in one command would otherwise get "superclass mismatch for class ReplayTest" instead of a
+# test run.
+class ReplaySystemTest < ApplicationSystemTestCase
   # Two questions asked of the page itself, because both are about layout rather than markup:
   # whether the move list is actually scrolling, and whether the highlighted entry is inside
   # the part of it a reader can see.

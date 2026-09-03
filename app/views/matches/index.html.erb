@@ -39,28 +39,34 @@
     </p>
   <% end %>
 
-  <table class="games">
+  <%# The explicit roles are not decoration. Below 40rem history.css gives every part of this
+      table `display: block` so five columns become one stacked card per game and the page
+      never scrolls sideways at a 360 px viewport; in Chromium and Firefox a display change
+      like that takes the table semantics out of the accessibility tree with it, and these
+      roles put them back. The column name each cell loses when the header row is hidden is
+      carried in data-label and printed by CSS in front of the value. %>
+  <table class="games" role="table">
     <caption class="games__caption">Your matches, newest first</caption>
-    <thead>
-      <tr>
-        <th scope="col">Game</th>
-        <th scope="col">Opponent</th>
-        <th scope="col">State</th>
-        <th scope="col">Moves</th>
-        <th scope="col">History</th>
+    <thead role="rowgroup">
+      <tr role="row">
+        <th role="columnheader" scope="col">Game</th>
+        <th role="columnheader" scope="col">Opponent</th>
+        <th role="columnheader" scope="col">State</th>
+        <th role="columnheader" scope="col">Moves</th>
+        <th role="columnheader" scope="col">History</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody role="rowgroup">
       <% @matches.each do |match| %>
-        <tr id="match-row-<%= match.id %>" class="games__row">
-          <th scope="row" class="games__mode">
+        <tr id="match-row-<%= match.id %>" class="games__row" role="row">
+          <th role="rowheader" scope="row" class="games__mode">
             <%= link_to mode_label(match), match_path(match), class: "games__link" %>
             <span class="games__when"><%= match.created_at.to_fs(:long) %></span>
           </th>
-          <td class="games__opponent"><%= opponent_name(match, @seats_by_match[match.id]) %></td>
-          <td class="games__state"><%= state_sentence(match) %></td>
-          <td class="games__count"><%= pluralize(@move_counts.fetch(match.id, 0), "move") %></td>
-          <td class="games__history">
+          <td role="cell" class="games__opponent" data-label="Opponent"><%= opponent_name(match, @seats_by_match[match.id]) %></td>
+          <td role="cell" class="games__state" data-label="State"><%= state_sentence(match) %></td>
+          <td role="cell" class="games__count" data-label="Moves"><%= pluralize(@move_counts.fetch(match.id, 0), "move") %></td>
+          <td role="cell" class="games__history" data-label="History">
             <%# The replay and the export are offered on finished games, which are the ones
                 there is a whole game to read. Both exist for every match (an unfinished
                 replay opens at the start, an unfinished export ends in *), and the match page

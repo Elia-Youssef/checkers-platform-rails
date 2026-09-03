@@ -56,7 +56,12 @@
           </div>
         </fieldset>
 
-        <%= submit_tag "Start a game against the computer", class: "button", name: nil %>
+        <%# A button element, not submit_tag: this card is a column flex box, so a submit
+            input would be stretched to the card and clip its own label (an input cannot wrap
+            its text). Measured before the change: 263 px of box for 298 px of label at a
+            1400 px viewport. The hot-seat card was always fine because button_to renders a
+            real button. %>
+        <%= button_tag "Start a game against the computer", type: :submit, class: "button", name: nil %>
       <% end %>
       <p class="mode__note">
         Easy plays at random, Medium searches four plies, and Hard thinks for up to a couple
@@ -91,7 +96,7 @@
             </div>
           </fieldset>
 
-          <%= submit_tag "Create an online match", class: "button", name: nil %>
+          <%= button_tag "Create an online match", type: :submit, class: "button", name: nil %>
         <% end %>
         <p class="mode__note">
           You get an invite link to send. The match starts when they open it, and both boards

@@ -12,6 +12,9 @@
   endpoint, one of your own movable pieces re-selects, and anything else clears the selection.
   With JavaScript on the board controller intercepts the click, keeps the selection in the
   page and posts the leg through the one hidden form below, so selecting costs no round trip.
+  It also remembers whether the keyboard was on the board (the focusin and focusout actions
+  below), because a Turbo Stream replaces this whole element and takes the focused square with
+  it; without JavaScript there is no update to survive and nothing here applies.
 %>
 <%
   targets_by_square = game.targets_by_square
@@ -35,7 +38,7 @@
   tinted = last_move ? [ last_move.origin, last_move.destination ] : []
 %>
 <div id="<%= Match::BOARD_ID %>" class="board-zone" data-controller="board"
-     data-action="click->board#click"
+     data-action="click->board#click focusin->board#focusIn focusout->board#focusOut"
      data-board-selected-value="<%= selection %>"
      data-board-locked-value="<%= game.pending? %>">
   <div class="board" role="group" aria-label="Checkers board, Red at the bottom">

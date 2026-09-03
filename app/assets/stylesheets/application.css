@@ -32,9 +32,10 @@
   --square-selected: #f2c14e;
   --square-target: #7fd4a2;
   /* The last move is a bright inset ring over a deepened square, not a mid-brown wash. A wash
-     that a red disc and a cream disc are both 3:1 from does not exist: they are only 4.2:1
-     apart, and 3:1 on each side needs 9:1. Deepening the square instead puts both discs well
-     clear of it, and the ring carries the marker's own 6:1 against an ordinary dark square. */
+     that a red disc and a cream disc are both 3:1 from does not exist: the two discs are only
+     2.87:1 apart (measured, tests/build/s4/contrast.py), and one wash 3:1 clear of both would
+     need 9:1 between them. Deepening the square instead puts both discs well clear of it, and
+     the ring carries the marker's own 6:1 against an ordinary dark square. */
   --square-last-move: #e0a15e;
   --square-last-move-fill: #1d1206;
 
