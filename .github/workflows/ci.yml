@@ -101,7 +101,7 @@ jobs:
         run: ruby -Ilib -Itest test/draughts_runner.rb
 
       - name: Check the computer opponent's strength and timing
-        run: ruby -Ilib -Itest test/draughts_ai_check.rb
+        run: ruby --yjit -Ilib -Itest test/draughts_ai_check.rb
 
       - name: Run tests
         env:
