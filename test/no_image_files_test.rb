@@ -106,7 +106,10 @@ class NoImageFilesTest < ActiveSupport::TestCase
   test "the only image files in the tree are the generated favicons" do
     pattern = ROOT.join("**/*.{#{IMAGE_EXTENSIONS.join(",")}}").to_s
     found = Dir.glob(pattern, File::FNM_CASEFOLD)
-      .reject { |path| path.include?("/tmp/") || path.include?("/log/") || path.include?("/storage/") || path.include?("/node_modules/") }
+      .reject do |path|
+        path.include?("/tmp/") || path.include?("/log/") || path.include?("/storage/") ||
+          path.include?("/node_modules/") || path.include?("/vendor/bundle/")
+      end
       .map { |path| relative(path) }
       .sort
 
