@@ -18,7 +18,14 @@ CI.run do
 
   step "Tests: Rails", "bin/rails test"
   step "Tests: System", "bin/rails test:system"
-  step "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant"
+  # db/seeds.rb on a clean database, which is the only way to know that it still loads and that
+  # it is still idempotent (SeedsTest loads it a second time from inside a transaction).
+  #
+  # db:test:prepare afterwards, because replanting leaves the seeded rows in the test database:
+  # the next run's fixtures would delete the demo users out from under the demo match and the
+  # fixture loader would refuse to start ("Foreign key violations found in your fixture data").
+  # Purging here is what keeps two consecutive bin/ci runs identical.
+  step "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant db:test:prepare"
 
   # Optional: set a green GitHub commit status to unblock PR merge.
   # Requires the `gh` CLI and `gh extension install basecamp/gh-signoff`.

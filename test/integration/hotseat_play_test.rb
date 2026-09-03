@@ -582,6 +582,20 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_response 422
     assert_select ".flash--alert", text: /has not started yet/
 
+    # The three draw endpoints answer the same way: a seat holder acting on a match that is
+    # not running is 422 with the state named, never 403 (session-7 audit, finding L3).
+    post match_draw_offer_path(match)
+    assert_response 422
+    assert_select ".flash--alert", text: /has not started yet/
+
+    post match_draw_accept_path(match)
+    assert_response 422
+    assert_select ".flash--alert", text: /has not started yet/
+
+    post match_draw_decline_path(match)
+    assert_response 422
+    assert_select ".flash--alert", text: /has not started yet/
+
     assert_equal before, match.reload.attributes
   end
 

@@ -23,7 +23,7 @@
         that has just been joined or cancelled has no invite left to show. %>
     <%= render "matches/invite", match: @match, seats: @seats,
           link: (join_url(@match.invite_token) if @match.invite_open?) %>
-    <%= render "matches/moves", game: @game %>
+    <%= render "matches/moves", pairs: move_pairs(@game), highlight: @game.plies %>
     <%= render "matches/controls", match: @match, game: @game, seats: @seats %>
   </div>
 </div>

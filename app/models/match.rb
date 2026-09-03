@@ -80,6 +80,61 @@ class Match < ApplicationRecord
   validate :online_match_seats_users_only
   validate :waiting_and_cancelled_belong_to_online_play
 
+  # ---- whose games these are ------------------------------------------------------------
+
+  # Newest first, which is the order My games lists them in. The id breaks ties, because two
+  # matches created in the same millisecond (a test, a script, a fast pair of clicks) would
+  # otherwise come back in whatever order SQLite chose.
+  scope :newest_first, -> { order(created_at: :desc, id: :desc) }
+
+  # The matches this identity holds a seat in, which is what My games lists. A signed-in user
+  # is asked for by id and a guest by the key in their browser's cookie; a match somebody only
+  # opened the URL of is not theirs and is not listed.
+  #
+  # A signed-in user is never also asked about their guest key: adoption rewrites the guest
+  # seats of this browser's local matches to the user at the moment they sign in, so after
+  # sign-in there is nothing of theirs left under the key (see .adopt_guest_matches).
+  def self.for_identity(user: nil, guest_key: nil)
+    if user.present?
+      where("matches.red_user_id = :id OR matches.white_user_id = :id", id: user.id)
+    elsif guest_key.present?
+      where("matches.red_guest_key = :key OR matches.white_guest_key = :key", key: guest_key.to_s)
+    else
+      none
+    end
+  end
+
+  # Guest adoption (TASK-BRIEF 1.5): when a browser signs up or signs in, the matches it
+  # started as a guest become the account's. One scoped UPDATE, no callbacks and no
+  # validations, so it costs one statement however many matches there are.
+  #
+  # What it does and does not touch, exactly:
+  #   - hot-seat and computer matches only. An online seat can never hold a guest key (the
+  #     model refuses it), so the mode filter is a second lock on the same door.
+  #   - a seat is rewritten only where that seat's own guest key is this browser's, so the
+  #     hot-seat pair moves together, the computer match's human seat moves alone, another
+  #     guest's matches are untouched, and a seat already held by a user is left as it is (a
+  #     seat holding a user has no guest key: seats_hold_one_identity_each forbids both).
+  #   - the guest key is cleared on the seat it rewrites, because one seat holds one identity.
+  #     That also makes this idempotent: a second run matches no rows.
+  # The guest cookie itself is deliberately left alone. It is the browser's identity, not the
+  # match's, and rotating it at sign-in would strand anything created in another tab.
+  #
+  # Returns the number of matches adopted.
+  def self.adopt_guest_matches(user:, guest_key:)
+    return 0 if user.nil? || guest_key.blank?
+
+    where(mode: %w[ hotseat ai ])
+      .where("red_guest_key = :key OR white_guest_key = :key", key: guest_key.to_s)
+      .update_all([ <<~SQL.squish, { key: guest_key.to_s, id: user.id, now: Time.current } ])
+        red_user_id = CASE WHEN red_guest_key = :key THEN :id ELSE red_user_id END,
+        white_user_id = CASE WHEN white_guest_key = :key THEN :id ELSE white_user_id END,
+        red_guest_key = CASE WHEN red_guest_key = :key THEN NULL ELSE red_guest_key END,
+        white_guest_key = CASE WHEN white_guest_key = :key THEN NULL ELSE white_guest_key END,
+        updated_at = :now
+      SQL
+  end
+
   # A hot-seat match: one identity holds both seats, and it starts from the pinned opening
   # with Red to move.
   def self.open_hotseat(user: nil, guest_key: nil)
@@ -230,6 +285,41 @@ class Match < ApplicationRecord
     else "Match"
     end
   end
+
+  # The mode in the words the pages and the export use: "hot-seat", "versus the computer",
+  # "online".
+  def mode_words
+    case mode
+    when "hotseat" then "hot-seat"
+    when "ai" then "versus the computer"
+    when "online" then "online"
+    else mode.to_s
+    end
+  end
+
+  # ---- export ---------------------------------------------------------------------------
+
+  # This match as the text of a .pdn file: the seven headers the brief pins, a blank line, the
+  # numbered move text wrapped at 80 columns and the result token last (TASK-BRIEF 1.7).
+  #
+  # The notation itself is the engine's, not this model's: Draughts::PDN writes the move text
+  # from the same Move objects the move list on the page is built from, so an exported file and
+  # the page can never disagree. The result token follows the engine's verdict as well, and is
+  # "*" for a match that has not finished.
+  #
+  # site is the address the file was downloaded from, which only a request knows, so the
+  # caller passes it in.
+  def pdn(site: nil)
+    Draughts::PDN.export(
+      game,
+      event: "Checkers on Rails, #{mode_words} game",
+      site: site.presence || "checkers-ruby",
+      date: created_at&.utc,
+      red: seat_name("red"), white: seat_name("white"))
+  end
+
+  # The name the browser saves the export under.
+  def pdn_filename = "checkers-#{id}.pdn"
 
   # The settings Play again carries: the same mode, and whatever else that mode is played
   # with. Against the computer that is the human's colour and the level, so the next game is

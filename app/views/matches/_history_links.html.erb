@@ -1,0 +1,8 @@
+<%# Replay and Export PDN for a finished match, shown to players and viewers alike.
+
+    Path helpers only, no _url and no request: this partial is rendered inside the controls
+    fragment, which is also rendered for a broadcast, where there is no host. %>
+<div class="button-row history-links">
+  <%= link_to "Replay", match_replay_path(match), class: "button button--quiet" %>
+  <%= link_to "Export PDN", match_path(match, format: :pdn), class: "button button--quiet" %>
+</div>

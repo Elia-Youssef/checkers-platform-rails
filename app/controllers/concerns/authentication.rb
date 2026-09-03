@@ -52,10 +52,35 @@ module Authentication
       reset_session
       session[:return_to_after_authenticating] = destination if destination
 
-      user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |session|
-        Current.session = session
-        cookies.signed.permanent[:session_id] = { value: session.id, httponly: true, same_site: :lax }
+      # One transaction for the session row and the adoption of this browser's guest matches, so
+      # a failure in either leaves neither: before this, a raise inside the adoption left the
+      # row committed and the browser signed in without its games, which only a later sign-in
+      # would have picked up (session-7 audit, finding L4).
+      #
+      # The cookie is written after the commit, on purpose. Written inside, a rollback would
+      # leave the browser holding a signed cookie naming a session row that does not exist.
+      created = Session.transaction do
+        row = user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip)
+        adopt_guest_matches(user)
+        row
       end
+      Current.session = created
+      cookies.signed.permanent[:session_id] = { value: created.id, httponly: true, same_site: :lax }
+      created
+    end
+
+    # Guest adoption (TASK-BRIEF 1.5, rubric 24). Every path into a signed-in session comes
+    # through here, sign up and sign in alike, so this is the one place it can be done and the
+    # one place it can be forgotten. It runs before the redirect, so the page the visitor lands
+    # on already names them where it read Guest.
+    #
+    # The guest cookie is left as it is: it identifies the browser, not the match, and a second
+    # sign-in from the same browser simply finds nothing left to adopt.
+    def adopt_guest_matches(user)
+      return if Current.guest_key.blank?
+
+      adopted = Match.adopt_guest_matches(user: user, guest_key: Current.guest_key)
+      Rails.logger.info("[adoption] #{adopted} guest matches adopted by user #{user.id}") if adopted.positive?
     end
 
     def terminate_session

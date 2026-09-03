@@ -16,6 +16,7 @@ class DrawOffersController < ApplicationController
   include MatchScoped
 
   before_action :require_seat
+  before_action :require_active_match
 
   def create
     @match.offer_draw!(acting_seat)

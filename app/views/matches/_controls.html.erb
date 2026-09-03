@@ -21,6 +21,12 @@
         free seat.
       </p>
     <% end %>
+    <%# The history of a finished match is public in the same way the board is: a viewer can
+        read the move list on this page already, so they can replay it and download it. %>
+    <% if match.finished? %>
+      <p class="controls__result"><%= result_sentence(match) %>.</p>
+      <%= render "matches/history_links", match: match %>
+    <% end %>
   <% elsif match.cancelled? %>
     <p class="controls__note" role="note">
       This match was cancelled before anybody joined it, and its invite link no longer works.
@@ -31,6 +37,8 @@
   <% elsif match.finished? %>
     <p class="controls__result"><%= result_sentence(match) %>.</p>
     <%= render "matches/rematch", match: match, seats: seats %>
+    <%# Replay and Export PDN, beside Play again, on every finished match (TASK-BRIEF 1.6). %>
+    <%= render "matches/history_links", match: match %>
     <div class="button-row">
       <% if match.online? %>
         <%# Online, Play again is a rematch: a new waiting match with the colours swapped

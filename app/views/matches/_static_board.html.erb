@@ -1,0 +1,25 @@
+<%# The board at one moment of a game, with nothing to click.
+
+    The replay page draws itself from this: it is handed a Draughts::Position parsed straight
+    out of a stored 32-character string and the two squares of the move that led to it. Every
+    square goes through the same matches/square partial the playable board uses, with playable
+    false, which renders each one as a disabled button carrying its accessible label. So a
+    replayed board looks and reads exactly like a live one, keeps the tint on the last move's
+    origin and destination (rubric 39), and cannot be used to play: there is no form on this
+    page and no square is a control.
+
+    The id is replay-board, not the live board's, because nothing replaces this fragment: the
+    replay subscribes to nothing and broadcasts nothing. %>
+<div id="replay-board" class="board-zone">
+  <div class="board" role="group" aria-label="<%= label %>">
+    <% board_cells.each do |number| %>
+      <% if number.nil? %>
+        <div class="board__cell board__cell--light" aria-hidden="true"></div>
+      <% else %>
+        <%= render "matches/square", match: match, number: number, piece: position.at(number),
+              selection: nil, target: false, tinted: tinted.include?(number),
+              playable: false, pending: false, own_targets: nil %>
+      <% end %>
+    <% end %>
+  </div>
+</div>

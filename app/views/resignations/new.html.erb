@@ -27,6 +27,6 @@
 
   <div class="match__aside">
     <%= render "matches/status", match: @match, game: @game %>
-    <%= render "matches/moves", game: @game %>
+    <%= render "matches/moves", pairs: move_pairs(@game), highlight: @game.plies %>
   </div>
 </div>

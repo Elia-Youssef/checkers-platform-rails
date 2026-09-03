@@ -17,6 +17,7 @@ class ResignationsController < ApplicationController
   include MatchScoped
 
   before_action :require_seat
+  before_action :require_active_match
   before_action :set_resigning_side
 
   def new

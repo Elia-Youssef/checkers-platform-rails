@@ -17,6 +17,9 @@
 #                         hold the acting seat with a 403", and section 2, "wrong seat ...
 #                         HTTP 403"); this is what stops one online player moving on the
 #                         other's turn or moving the other's pieces.
+#                         holds a seat, match not active         -> 422 with the sentence
+#                         naming the state, for either seat holder alike (see
+#                         require_active_match).
 #                         holds the acting seat, leg illegal     -> 422, decided by the
 #                         engine alone: a quiet move while a capture exists, a leg that does
 #                         not continue a pending jump, a piece of the other colour, a square
@@ -90,6 +93,24 @@ module MatchScoped
     # both are 403 and neither reaches the engine.
     def require_acting_seat
       head :forbidden unless @seats.include?(@match.side_to_move)
+    end
+
+    # A participant acting on a match that is not running gets 422 and the sentence that names
+    # the state, whichever seat they hold and whichever colour was to move when it ended.
+    #
+    # It runs after require_seat and before require_acting_seat, which is what makes the code
+    # mean one thing each: 403 is "this session holds no seat here, or not the seat it is
+    # acting for", 422 is "the match cannot be acted on now". Before this, a move posted to a
+    # finished match answered 403 or 422 depending on which colour happened to be to move when
+    # it ended, because side_to_move is frozen at the end and require_acting_seat compares
+    # against it: the same situation, two codes (session-7 audit, finding L3).
+    #
+    # Cancel and rematch do not use it and must not: cancelling is only ever done to a waiting
+    # match and a rematch only to a finished one, so "not active" is their normal case and each
+    # has its own refusal in the model.
+    def require_active_match
+      reason = @match.inactive_reason
+      refuse(Draughts::IllegalMove.new(reason)) if reason
     end
 
     # The square the page should show as selected, or nil. It is a plain URL parameter, which

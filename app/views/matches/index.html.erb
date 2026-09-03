@@ -1,0 +1,79 @@
+<%# My games: every match this identity holds a seat in, newest first (TASK-BRIEF 1.7).
+
+    Identity is a signed-in user or the guest key in this browser's cookie, decided by the
+    controller; a match that was only looked at is not here. Everything a row shows comes from
+    the three queries the controller ran, so this page touches the database not at all. %>
+<% content_for :title, "My games" %>
+
+<h1>My games</h1>
+
+<% if @matches.empty? %>
+  <p class="lede">
+    <% if Current.user %>
+      Nothing here yet. Games you play signed in as
+      <%= Current.user.display_name %> are listed on this page, and so are any you started as a
+      guest in this browser before you signed in.
+    <% else %>
+      Nothing here yet. Games you start in this browser are listed on this page, even without
+      an account, and they become yours for good if you sign up.
+    <% end %>
+  </p>
+  <div class="button-row">
+    <%= link_to "Start a game", root_path, class: "button" %>
+  </div>
+<% else %>
+  <p class="lede">
+    <%= pluralize(@matches.length, "match") %>, newest first. Every game is saved: open one to
+    carry on where it stopped, or replay a finished one move by move.
+  </p>
+
+  <%# A guest is identified by a cookie in this browser and nothing else, so this list is
+      the browser's, not a person's: a cleared or expired cookie leaves the games in the
+      database and at their addresses but takes them off this page for good (session-7 audit,
+      finding L8). Say so, once, where it matters, and only to a visitor it applies to. %>
+  <% unless Current.user %>
+    <p class="games__note">
+      These games belong to this browser, not to an account: clearing this browser's cookies
+      loses sight of them. <%= link_to "Sign up", new_registration_path %> or
+      <%= link_to "sign in", new_session_path %> and they become your account's for good.
+    </p>
+  <% end %>
+
+  <table class="games">
+    <caption class="games__caption">Your matches, newest first</caption>
+    <thead>
+      <tr>
+        <th scope="col">Game</th>
+        <th scope="col">Opponent</th>
+        <th scope="col">State</th>
+        <th scope="col">Moves</th>
+        <th scope="col">History</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @matches.each do |match| %>
+        <tr id="match-row-<%= match.id %>" class="games__row">
+          <th scope="row" class="games__mode">
+            <%= link_to mode_label(match), match_path(match), class: "games__link" %>
+            <span class="games__when"><%= match.created_at.to_fs(:long) %></span>
+          </th>
+          <td class="games__opponent"><%= opponent_name(match, @seats_by_match[match.id]) %></td>
+          <td class="games__state"><%= state_sentence(match) %></td>
+          <td class="games__count"><%= pluralize(@move_counts.fetch(match.id, 0), "move") %></td>
+          <td class="games__history">
+            <%# The replay and the export are offered on finished games, which are the ones
+                there is a whole game to read. Both exist for every match (an unfinished
+                replay opens at the start, an unfinished export ends in *), and the match page
+                is one click away for a game still in play. %>
+            <% if match.finished? %>
+              <%= link_to "Replay", match_replay_path(match), class: "games__link" %>
+              <%= link_to "Export PDN", match_path(match, format: :pdn), class: "games__link" %>
+            <% else %>
+              <%= link_to "Open", match_path(match), class: "games__link" %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
