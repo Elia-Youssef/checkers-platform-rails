@@ -43,7 +43,11 @@
 
           <% if authenticated? %>
             <span class="masthead__identity"><%= Current.user&.display_name %></span>
-            <%= button_to "Sign out", session_path, method: :delete, class: "button button--quiet" %>
+            <%# A full page load, like signing in and signing up: it ends the document, and the
+                Action Cable socket with it, at the moment this browser stops being this user
+                (see the note on the sign-in form). %>
+            <%= button_to "Sign out", session_path, method: :delete,
+                  class: "button button--quiet", form: { data: { turbo: false } } %>
           <% else %>
             <%= link_to "Sign in", new_session_path, class: "masthead__link" %>
             <%= link_to "Sign up", new_registration_path, class: "masthead__link" %>

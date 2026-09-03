@@ -24,9 +24,11 @@
 # every update in its own response), so it broadcasts the viewer rendering alone.
 #
 # Turbo signs a stream name with the application's secret before it reaches the page, and the
-# seat streams are only ever named inside the seat holder's own HTML, so a viewer cannot
-# subscribe to one: they never see the signed name and cannot forge it. Nothing is authorised
-# by socket membership all the same; every action is authorised per request by MatchScoped.
+# seat streams are only ever named inside the seat holder's own HTML, so a viewer never sees
+# one and cannot forge it; MatchStreamAuthorization then refuses a seat's stream to any
+# connection but that seat holder's, so a name read off somebody's screen is no longer a key.
+# Nothing is authorised by socket membership all the same; every action is authorised per
+# request by MatchScoped.
 #
 # WHO SUBSCRIBES. A page subscribes only when somebody other than this browser can change the
 # match: the holder of one seat in an online match, or a viewer. The hot-seat browser holds
@@ -61,16 +63,13 @@ module MatchBroadcasts
   # (session-6 audit, finding M2). Including the seat's user means a name is dead the moment the
   # seat is held by somebody else.
   #
-  # What it does not do, deliberately: a name is still a bearer token. Anyone who is handed one,
-  # by reading it out of the seat holder's own page or by keeping a tab open after signing out,
-  # keeps receiving that seat's fragments until the socket closes (measured again by the
-  # session-6 diff review). Three things bound that and it is accepted as it stands: the name is
-  # the seat holder's own page content, so obtaining it means reading their screen; a name cannot
-  # be derived or forged, since it is signed with the application secret and now carries the
-  # holder's global id, and an unsigned, bogus or one-byte-altered name is refused; and receiving
-  # a fragment is not acting, because every action is authorised per request against the seat and
-  # answers 403 to a session that holds none. Revoking a name on sign-out would mean a channel of
-  # our own that authorises on subscribe instead of Turbo's signed stream name.
+  # The name alone is no longer enough to listen, which it used to be: a signed name is page
+  # content, and the round-1 audit handed one to a websocket carrying no cookies at all, was
+  # accepted, and collected the rematch invite token off the Red seat's stream (finding M2).
+  # MatchStreamAuthorization now checks the claim on subscribe, so a seat stream is delivered
+  # only to a connection whose signed-in user is the user in the name; the viewer stream stays
+  # open to anybody, because its rendering is the read-only board any visitor can already fetch.
+  # Nothing here changed for that: the names are the same and so are the broadcasts.
   def stream_for(audience)
     audience = audience.to_s
     return [ self, audience ] if audience == VIEWER

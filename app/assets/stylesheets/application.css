@@ -80,6 +80,18 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute wins over any rule in this file.
+ *
+ * The user agent's own rule for [hidden] is display: none, but it is a user-agent rule, and
+ * every author rule beats it: the bare `button` selector further down sets display:
+ * inline-block, which made the invite panel's Copy link button visible with JavaScript
+ * switched off, and clickable, and dead (round-1 audit, finding M2, measured at 108 by 42.8
+ * px on a page whose script never ran). Anything this application writes as hidden is hidden
+ * until something removes the attribute, whatever else matches it. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }

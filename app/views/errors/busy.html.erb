@@ -1,0 +1,26 @@
+<%# The answer to a write that waited past the SQLite busy timeout (ApplicationController).
+
+    No layout and no record: the database is busy, so this page asks it nothing (the layout's
+    masthead does, to name the visitor). It links the application stylesheet, which Propshaft
+    resolves without a query, and uses its classes rather than inline styles, which the
+    content security policy would refuse anyway. %>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>The server was busy</title>
+    <%= stylesheet_link_tag "application" %>
+  </head>
+  <body>
+    <main id="main" class="page">
+      <h1>The server was busy for a moment</h1>
+      <p>
+        Another write held the database longer than we wait for it, so
+        <strong>your action was not applied</strong> and nothing was changed. Nothing is lost:
+        go back and try it again in a few seconds.
+      </p>
+      <p><%= link_to "Back to the home page", root_path %></p>
+    </main>
+  </body>
+</html>

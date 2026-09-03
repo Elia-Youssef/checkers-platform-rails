@@ -106,6 +106,17 @@ class OnlineTest < ApplicationSystemTestCase
     Capybara.using_session(:ada) { invite = find("##{Match::INVITE_ID} input").value }
     assert_operator invite.split("/").last.length, :>=, 20
 
+    # The copy button, with JavaScript on: the Stimulus controller takes the hidden attribute
+    # off and the button copies. This is one half of a pair; the other is
+    # test/system/hidden_controls_without_javascript_test.rb, where a browser running no script
+    # is shown no button at all. Either half alone would pass a build that had the wrong one.
+    Capybara.using_session(:ada) do
+      assert_no_selector ".invite__copy[hidden]", visible: :all
+      assert_button "Copy link"
+      click_button "Copy link"
+      assert_selector ".invite__status", text: /copied|Ctrl\+C/
+    end
+
     # Grace opens the invite link. Ada's page must switch to the active board on its own.
     Capybara.using_session(:grace) do
       sign_in_as users(:two)
@@ -303,5 +314,53 @@ class OnlineTest < ApplicationSystemTestCase
     assert_equal "agreement", match.reason
   ensure
     ActionController::Base.allow_forgery_protection = original
+  end
+
+  # ---- the seat stream and the identity of the socket ------------------------------------
+
+  # Action Cable settles who a socket belongs to when the socket opens, and a seat stream is
+  # delivered only to the player holding that seat (MatchStreamAuthorization). A document that
+  # opened its socket while nobody was signed in and then signed in without leaving that
+  # document would therefore ask for its seat's stream as nobody, and be refused: measured
+  # before this was fixed, the creator's page still read "Waiting for a second player" 6.5 s
+  # after the opponent had joined. Signing in, signing up and signing out are full page loads
+  # for that reason (data-turbo="false" on the three forms), which ends the document and its
+  # socket at the moment the identity changes. Every navigation below is a click, because a
+  # Capybara visit is a full page load and would hide exactly what this test is about.
+  test "a visitor who signs in without a page load still receives their seat live" do
+    watched = Match.open_online(creator: users(:three), colour: "red")
+
+    visit match_path(watched)
+    assert_selector "##{Match::BOARD_ID}"
+    assert_selector "turbo-cable-stream-source", visible: :all, count: 1
+
+    click_link "Sign in"
+    fill_in "Email address", with: users(:one).email_address
+    fill_in "Password", with: "password"
+    click_button "Sign in"
+    assert_selector ".masthead__identity", text: users(:one).display_name
+
+    within("#mode-online") do
+      choose "online-colour-red"
+      click_button "Create an online match"
+    end
+    assert_selector "##{Match::INVITE_ID} input"
+    match = Match.find(Integer(current_path[%r{/matches/(\d+)}, 1]))
+    assert_equal users(:one), match.red_user
+
+    # Turbo's stream source element carries `connected` only once Action Cable has confirmed
+    # the subscription, so this one assertion is both the answer to this test's question (a
+    # refused seat stream never confirms) and what makes the join below deterministic: a
+    # broadcast published before the socket subscribed reaches nobody, and this page is
+    # reached by clicking, which is not the `visit` turbo-rails patches to wait for exactly
+    # this. Without it the test failed once in a loaded parallel run and passed alone.
+    assert_selector "turbo-cable-stream-source[connected]", visible: :all
+
+    match.join!(users(:two))
+    live(Capybara.session_name, "the join, on a page reached by signing in") do
+      assert_no_selector "##{Match::INVITE_ID} input"
+      assert_selector ".controls__turn", text: "Your move"
+      assert_text users(:two).display_name
+    end
   end
 end

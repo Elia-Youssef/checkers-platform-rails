@@ -18,12 +18,18 @@ jobs:
         with:
           bundler-cache: true
 
+      # The flags are config/ci.rb's, exactly, so this job and bin/ci cannot disagree about
+      # what a finding means. Measured on Brakeman 8.0.6 with one injected warning: the
+      # generator's bare `bin/brakeman --no-pager` exits 3 as well, because Brakeman 6.0 made
+      # a non-zero exit on warnings the default, so this job was not the blind spot the
+      # round-1 audit reported (finding M1). Being explicit is still worth the line: the two
+      # commands are now the same one, and neither depends on a default that has changed once.
       - name: Scan for common Rails security vulnerabilities using static analysis
-        run: bin/brakeman --no-pager
-      
+        run: bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
+
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
-      
+
   scan_js:
     runs-on: ubuntu-latest
 
