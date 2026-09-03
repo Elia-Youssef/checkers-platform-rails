@@ -7,7 +7,10 @@
   computer games do not need one.
 </p>
 
-<%= form_with model: @user, url: registration_path, class: "form" do |form| %>
+<%# data-turbo="false" for the reason given on the sign-in form: signing up changes who this
+    browser is, and the websocket it may already hold was opened as somebody else. %>
+<%= form_with model: @user, url: registration_path, class: "form",
+      data: { turbo: false } do |form| %>
   <% if @user.errors.any? %>
     <div class="form__errors" role="alert">
       <p><strong><%= pluralize(@user.errors.count, "problem") %> stopped this sign up:</strong></p>

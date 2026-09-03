@@ -2,8 +2,16 @@
 
 <h1>Sign in</h1>
 
-<%# Flashes are rendered by the layout. %>
-<%= form_with url: session_path, class: "form" do |form| %>
+<%# Flashes are rendered by the layout.
+
+    data-turbo="false" makes signing in a full page load rather than a Turbo visit. Signing in
+    changes who this browser is, and an Action Cable socket keeps the identity it connected
+    with: a document that opened a socket as a viewer and then signed in without leaving that
+    document would carry the old identity to the next subscription, and MatchStreamAuthorization
+    would refuse it that seat's stream (measured: the creator's page missed the join). A full
+    load ends the document and the socket with it. The same attribute is on the sign-up form
+    and on the sign-out button in the layout, which are the other two ways identity changes. %>
+<%= form_with url: session_path, class: "form", data: { turbo: false } do |form| %>
   <div class="form__field">
     <%= form.label :email_address, "Email address" %>
     <%= form.email_field :email_address, required: true, autofocus: true,
