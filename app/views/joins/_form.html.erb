@@ -1,0 +1,15 @@
+<%# The field that takes an invite link or the bare code from one. It posts to /join, which
+    reads the code out of whatever was pasted and sends the visitor to /join/<code>, so both
+    forms of the input reach the same place. %>
+<%= form_with url: joins_path, method: :post, class: "join-form" do %>
+  <label class="join-form__label" for="invite">Invite link or code</label>
+  <%# The placeholder is built from this request, so it is right on whatever host and port the
+      page was opened at: localhost:3000 for the development stack, localhost:8080 for the
+      production image, a real name behind a proxy. It used to be the literal development
+      address and was wrong everywhere else (round-1 audit, finding L8). %>
+  <%= text_field_tag :invite, invite, id: "invite", class: "join-form__field",
+        placeholder: join_url("..."), autocomplete: "off", spellcheck: "false" %>
+  <%# A button element for the same reason as the two on the home page: this row is a flex
+      box, a submit input is allowed to shrink in one and cannot wrap its label. %>
+  <%= button_tag "Join the match", type: :submit, class: "button", name: nil %>
+<% end %>

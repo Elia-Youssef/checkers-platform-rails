@@ -86,4 +86,9 @@ Rails.application.configure do
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # No seed: every computer move draws from a fresh random source, so two games against the
+  # same level differ. The test environment pins a seed instead. An unset config.x key answers
+  # with an empty OrderedOptions rather than nil, so this is set explicitly.
+  config.x.ai_random_seed = nil
 end

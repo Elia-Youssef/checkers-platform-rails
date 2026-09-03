@@ -44,8 +44,24 @@ services:
       # Where bin/bundler-audit keeps its copy of ruby-advisory-db. Inside the bundle volume,
       # so it persists across `docker compose run --rm` and across `docker compose up`.
       BUNDLER_AUDIT_DB: /usr/local/bundle/ruby-advisory-db
+      # Docker Desktop on Windows does not deliver inotify events for files edited on the host,
+      # so the development file watcher polls from its own thread instead of listening for
+      # events that never arrive. See config/initializers/file_watching.rb. On a host whose
+      # bind mounts do propagate inotify, delete this line and reloading gets faster still.
+      LISTEN_FORCE_POLLING: "1"
+      # Puma worker processes. MRI holds one global VM lock per process, so a Hard search,
+      # which is a pure-Ruby loop of a second or two, stops every other request in its
+      # process: measured at 2.1 to 2.2 s of waiting for requests that take 0.02 s on an idle
+      # server. Two workers means a search in one leaves the other serving. Puma reads this
+      # variable itself (puma/configuration.rb), so config/puma.rb needs nothing added.
+      WEB_CONCURRENCY: "2"
     ports:
-      - "3000:3000"
+      # The port on the host, 3000 unless CHECKERS_PORT says otherwise:
+      #   CHECKERS_PORT=3100 docker compose up
+      # The container always listens on 3000, so every command in the README is unchanged and
+      # only the address in the browser moves. A reviewer whose 3000 is already taken needs
+      # this and must not have to edit a tracked file to get it (round-1 audit, finding M3).
+      - "${CHECKERS_PORT:-3000}:3000"
     # Headless Chromium exhausts the default 64 MB /dev/shm and crashes mid test.
     shm_size: 1gb
     # Keep a TTY so that `docker compose run` is usable interactively (bin/rails console,

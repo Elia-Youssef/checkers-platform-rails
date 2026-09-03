@@ -41,20 +41,37 @@ class DraughtsAITest < Minitest::Test
     assert_in_delta 1.5, AI::HARD_BUDGET
     assert_operator AI::HARD_ABORT_AFTER, :>, AI::HARD_BUDGET
     assert_operator AI::HARD_ABORT_AFTER, :<, 3.0
-    assert_nil AI::HARD_DEADLINE, "the stop that can break the depth floor ships off"
+    # The owner's decision of 2026-09-03, recorded as the one deviation from TASK-BRIEF 1.4:
+    # the stop that can break the depth floor ships on, so that the 3.0 s request pin holds
+    # on every position. Above the floor nothing changes, because HARD_ABORT_AFTER is the
+    # earlier of the two stops there.
+    assert_in_delta 2.5, AI::HARD_DEADLINE
+    assert_operator AI::HARD_DEADLINE, :>, AI::HARD_ABORT_AFTER
+    assert_operator AI::HARD_DEADLINE, :<, 3.0
   end
 
-  def test_the_optional_hard_deadline_can_bound_the_clock_instead_of_the_depth
-    # Off by default: the floor wins however late the injected clock says it is. Three
-    # kings, so the whole depth-8 floor costs a few milliseconds.
+  def test_the_hard_deadline_bounds_the_clock_instead_of_the_depth
+    # With the deadline far away the floor wins, however late the injected clock says it is.
+    # Three kings, so the whole depth-8 floor costs a few milliseconds.
     tiny = Position.build({ 4 => "R", 8 => "R", 29 => "W" }, Side::RED)
-    floored = AI.choose(tiny, level: :hard, random: Random.new(1),
+    floored = AI.choose(tiny, level: :hard, random: Random.new(1), hard_deadline: 1e9,
                         clock: FakeClock.new(step: 1000.0))
 
     assert_equal AI::HARD_FLOOR, floored.depth
     assert_predicate floored, :complete?
 
-    # Asked for by name: the clock wins and the Choice says so, with a real move.
+    # Once it has passed, the clock wins even below the floor and the Choice says so, with a
+    # real move. This is what the shipped HARD_DEADLINE does on a board too wide for depth 8
+    # inside the request budget.
+    hit = AI.choose(Position.start, level: :hard, random: Random.new(1),
+                    clock: FakeClock.new(step: 1.0))
+
+    assert_operator hit.depth, :<, AI::HARD_FLOOR
+    assert_operator hit.depth, :>=, 1
+    refute_predicate hit, :complete?
+    assert_includes Rules.legal_moves(Position.start), hit.move
+
+    # And a caller may still name its own, earlier or later than the shipped one.
     bounded = AI.choose(Position.start, level: :hard, random: Random.new(1),
                         hard_deadline: 6.0, clock: FakeClock.new(step: 1.0))
 
@@ -219,9 +236,11 @@ class DraughtsAITest < Minitest::Test
     position = Position.build({ 1 => "r", 15 => "r", 23 => "w", 32 => "w" }, Side::RED)
 
     floored = AI.choose(position, level: :hard, random: Random.new(1), floor: 5, cap: 7,
-                        budget: 0.5, abort_after: 0.1, clock: FakeClock.new(step: 100.0))
+                        budget: 0.5, abort_after: 0.1, hard_deadline: 1e9,
+                        clock: FakeClock.new(step: 100.0))
 
-    assert_equal 5, floored.depth, "the floor is searched however late the clock says it is"
+    assert_equal 5, floored.depth,
+                 "with the deadline far away the floor is searched however late it is"
     assert_predicate floored, :complete?
 
     capped = AI.choose(position, level: :hard, random: Random.new(1), floor: 1, cap: 4,
@@ -233,7 +252,7 @@ class DraughtsAITest < Minitest::Test
 
   def test_hard_gives_back_the_last_finished_depth_when_the_deadline_bites
     choice = AI.choose(Position.start, level: :hard, random: Random.new(1), floor: 1,
-                       cap: 9, budget: 1e9, abort_after: 7.0,
+                       cap: 9, budget: 1e9, abort_after: 7.0, hard_deadline: 7.0,
                        clock: FakeClock.new(step: 1.0))
 
     assert_equal 1, choice.depth

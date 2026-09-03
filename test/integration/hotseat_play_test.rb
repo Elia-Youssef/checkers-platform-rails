@@ -55,11 +55,11 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_equal %w[red white], match.seats_held_by(guest_key: signed_cookie(:guest_key))
   end
 
-  test "a mode that is not built yet creates nothing" do
+  test "a mode that does not exist creates nothing" do
     get root_path
 
     assert_no_difference -> { Match.count } do
-      post matches_path, params: { mode: "online" }
+      post matches_path, params: { mode: "sideways" }
     end
     assert_redirected_to root_path
   end
@@ -131,7 +131,8 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_response 422
     assert_equal before, match.reload.attributes
     assert_equal 2, match.moves.count
-    assert_select "button[aria-label=?]", "Square 18, White man"
+    # 22-18 is still the last move, so square 18 is still where it landed.
+    assert_select "button[aria-label=?]", "Square 18, White man, moved here"
   end
 
   test "a move for the side not on turn is 422" do
@@ -393,8 +394,11 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
 
     get match_path(match)
     assert_select "button.square--last-move", 2
-    assert_select "button.square--last-move[aria-label=?]", "Square 11, empty"
-    assert_select "button.square--last-move[aria-label=?]", "Square 15, Red man"
+    # The tint is also in the two accessible names, so it is not pixels only (round-2
+    # accessibility audit, finding M1). Nothing else on the board says "moved".
+    assert_select "button.square--last-move[aria-label=?]", "Square 11, empty, moved from here"
+    assert_select "button.square--last-move[aria-label=?]", "Square 15, Red man, moved here"
+    assert_select "button[aria-label*=?]", "moved", 2
   end
 
   test "a signed-in creator sees their display name in both seats" do
@@ -477,7 +481,7 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
       assert_select other.html_document.root, ".moves__move", 4
       assert_select other.html_document.root, ".status__headline", text: /Red to move/
       assert_select other.html_document.root,
-        "button[aria-label=?]", "Square 18, White man"
+        "button[aria-label=?]", "Square 18, White man, moved here"
     end
 
     assert_equal match.position, Match.find(match.id).position
@@ -554,7 +558,7 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_select "button.square:not([disabled])", 0, "a waiting match offered a live square"
     assert_select "button[data-legal-targets]", 0
     assert_select "form[action=?]", match_moves_path(match), 0
-    assert_select ".controls__note", text: /waiting for a second player to take the free seat/
+    assert_select ".controls__note", text: /waiting for a second player to take the White seat/
     assert_select "form[action=?]", match_undo_path(match), 0
     assert_select "a[href=?]", new_match_resignation_path(match), 0
     assert_select ".player--turn", 0
@@ -579,6 +583,20 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_select ".flash--alert", text: /has not started yet/
 
     post match_resignation_path(match)
+    assert_response 422
+    assert_select ".flash--alert", text: /has not started yet/
+
+    # The three draw endpoints answer the same way: a seat holder acting on a match that is
+    # not running is 422 with the state named, never 403 (session-7 audit, finding L3).
+    post match_draw_offer_path(match)
+    assert_response 422
+    assert_select ".flash--alert", text: /has not started yet/
+
+    post match_draw_accept_path(match)
+    assert_response 422
+    assert_select ".flash--alert", text: /has not started yet/
+
+    post match_draw_decline_path(match)
     assert_response 422
     assert_select ".flash--alert", text: /has not started yet/
 
@@ -702,7 +720,8 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     # An active online match with Ada on Red and Grace on White. Phase 6 builds these for real;
     # phase 4 only has to behave correctly if one exists.
     def online_match
-      Match.create!(mode: "online", status: "active",
+      Match.create!(mode: "online", status: "active", invite_token: Match.generate_invite_token,
+                    invite_token_used_at: Time.current,
                     red_user: users(:one), white_user: users(:two))
     end
 

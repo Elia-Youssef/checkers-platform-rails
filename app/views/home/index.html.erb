@@ -26,8 +26,47 @@
       White. No account needed.
     </p>
     <div class="mode__action">
-      <button type="button" class="button" disabled>Start a game against the computer</button>
-      <p class="mode__note">Not yet connected in this build step.</p>
+      <%# Two plain fieldsets and a submit: no JavaScript decides anything here, and the two
+          names are the two the match carries afterwards, so Play again on the finished page
+          posts this same form back with the same values. %>
+      <%= form_with url: matches_path, method: :post, class: "mode__form" do %>
+        <%= hidden_field_tag :mode, "ai", id: nil %>
+
+        <fieldset class="choice">
+          <legend class="choice__legend">Your colour</legend>
+          <div class="choice__options">
+            <% [ [ "red", "Red (you move first)" ], [ "white", "White (the computer moves first)" ] ].each_with_index do |(value, label), index| %>
+              <span class="choice__option">
+                <%= radio_button_tag :colour, value, index.zero?, id: "ai-colour-#{value}" %>
+                <%= label_tag "ai-colour-#{value}", label %>
+              </span>
+            <% end %>
+          </div>
+        </fieldset>
+
+        <fieldset class="choice">
+          <legend class="choice__legend">Level</legend>
+          <div class="choice__options">
+            <% Draughts::AI::LEVELS.each_with_index do |level, index| %>
+              <span class="choice__option">
+                <%= radio_button_tag :level, level, index == 1, id: "ai-level-#{level}" %>
+                <%= label_tag "ai-level-#{level}", Draughts::AI.label(level) %>
+              </span>
+            <% end %>
+          </div>
+        </fieldset>
+
+        <%# A button element, not submit_tag: this card is a column flex box, so a submit
+            input would be stretched to the card and clip its own label (an input cannot wrap
+            its text). Measured before the change: 263 px of box for 298 px of label at a
+            1400 px viewport. The hot-seat card was always fine because button_to renders a
+            real button. %>
+        <%= button_tag "Start a game against the computer", type: :submit, class: "button", name: nil %>
+      <% end %>
+      <p class="mode__note">
+        Easy plays at random, Medium searches four plies, and Hard thinks for up to a couple
+        of seconds. The computer answers in the same page as your move.
+      </p>
     </div>
   </li>
 
@@ -39,8 +78,30 @@
     </p>
     <div class="mode__action">
       <% if authenticated? %>
-        <button type="button" class="button" disabled>Create an online match</button>
-        <p class="mode__note">Not yet connected in this build step.</p>
+        <%# The same shape as the computer form: one fieldset and a submit, no JavaScript
+            deciding anything. The match is created waiting, and its page carries the invite
+            link to send. %>
+        <%= form_with url: matches_path, method: :post, class: "mode__form" do %>
+          <%= hidden_field_tag :mode, "online", id: nil %>
+
+          <fieldset class="choice">
+            <legend class="choice__legend">Your colour</legend>
+            <div class="choice__options">
+              <% [ [ "red", "Red (you move first)" ], [ "white", "White (your opponent moves first)" ], [ "random", "Random" ] ].each_with_index do |(value, label), index| %>
+                <span class="choice__option">
+                  <%= radio_button_tag :colour, value, index.zero?, id: "online-colour-#{value}" %>
+                  <%= label_tag "online-colour-#{value}", label %>
+                </span>
+              <% end %>
+            </div>
+          </fieldset>
+
+          <%= button_tag "Create an online match", type: :submit, class: "button", name: nil %>
+        <% end %>
+        <p class="mode__note">
+          You get an invite link to send. The match starts when they open it, and both boards
+          update live from then on.
+        </p>
       <% else %>
         <div class="button-row">
           <%= link_to "Sign in", new_session_path, class: "button" %>
@@ -53,10 +114,13 @@
 
   <li class="mode" id="mode-join">
     <h2>Join a match</h2>
-    <p>Paste an invite link, or the token from one, to take the free seat in someone else's match.</p>
+    <p>Paste an invite link, or the code from one, to take the free seat in someone else's match.</p>
     <div class="mode__action">
-      <button type="button" class="button" disabled>Join with an invite link</button>
-      <p class="mode__note">Not yet connected in this build step.</p>
+      <%= render "joins/form", invite: nil %>
+      <p class="mode__note">
+        Opening the link is enough on its own. You need an account, and you cannot join a
+        match you created yourself.
+      </p>
     </div>
   </li>
 </ul>

@@ -1,0 +1,38 @@
+<%# The invite link for a waiting online match, shown to the player who created it and to
+    nobody else: the address of the match is public, the token is not, so a viewer who opens
+    the match page must not be able to read it.
+
+    The plain link is always there, as a link and as its own text, which is what a visitor
+    with JavaScript switched off copies. The copy button is hidden until the Stimulus
+    controller reveals it, so a page without JavaScript never shows a control that cannot do
+    anything.
+
+    link is nil in a broadcast (there is no host outside a request) and nil once the match has
+    been joined or cancelled, which is exactly when the panel should disappear. The wrapper
+    keeps its id either way so a broadcast can replace it. %>
+<div id="<%= Match::INVITE_ID %>">
+  <% if link.present? && match.waiting? && seats.any? %>
+    <section class="invite" data-controller="clipboard" aria-labelledby="invite-heading">
+      <h2 class="invite__heading" id="invite-heading">Invite a player</h2>
+      <p class="invite__note">
+        Send this link to the person you want to play. They sign in, open it, and take the
+        <%= side_label(match.free_seat) %> seat.
+      </p>
+
+      <div class="invite__link">
+        <label class="invite__label" for="invite-link">Invite link</label>
+        <input class="invite__field" id="invite-link" type="text" readonly value="<%= link %>"
+               data-clipboard-target="source" spellcheck="false">
+        <button type="button" class="button button--quiet invite__copy" hidden
+                data-clipboard-target="button" data-action="clipboard#copy">Copy link</button>
+      </div>
+      <p class="invite__status" role="status" data-clipboard-target="status"></p>
+      <p class="invite__plain">Or send the address itself: <%= link_to link, link, class: "invite__address" %></p>
+
+      <div class="button-row">
+        <%= button_to "Cancel this match", match_cancellation_path(match),
+              class: "button button--quiet" %>
+      </div>
+    </section>
+  <% end %>
+</div>

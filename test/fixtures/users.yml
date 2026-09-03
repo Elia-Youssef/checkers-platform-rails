@@ -9,3 +9,10 @@ two:
   email_address: two@example.com
   display_name: Grace
   password_digest: <%= password_digest %>
+
+# A third account, for the tests that need somebody who holds no seat: the person who opens
+# an online match's public URL and must see it read-only.
+three:
+  email_address: three@example.com
+  display_name: Linus
+  password_digest: <%= password_digest %>

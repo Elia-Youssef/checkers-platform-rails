@@ -12,6 +12,14 @@ require "test_helper"
 class ApplicationRackTestCase < ActionDispatch::SystemTestCase
   driven_by :rack_test
 
+  # turbo-rails patches visit to wait, after every page, until each <turbo-cable-stream-source>
+  # element in it reports itself connected. Only JavaScript can set that attribute, and this
+  # driver has none, so the wait would fail on every online match page (the one place the
+  # element is rendered). There is nothing to wait for here: with JavaScript off the page never
+  # subscribes to anything and every update arrives because the page was asked for again.
+  def connect_turbo_cable_stream_sources
+  end
+
   # Every square button on the board, addressed by its PDN number.
   def square(number)
     find("##{Match::BOARD_ID} button[data-square='#{number}']", visible: :all)
@@ -47,6 +55,19 @@ class ApplicationRackTestCase < ActionDispatch::SystemTestCase
     visit root_path
     within "#mode-hotseat" do
       click_button "Start a hot-seat game"
+    end
+    assert_selector "##{Match::BOARD_ID}"
+    Match.order(:id).last
+  end
+
+  # Starts a match against the computer from the home page, choosing the colour and the level
+  # with the form's own radio buttons.
+  def start_computer(colour: "red", level: "medium")
+    visit root_path
+    within "#mode-computer" do
+      choose "ai-colour-#{colour}"
+      choose "ai-level-#{level}"
+      click_button "Start a game against the computer"
     end
     assert_selector "##{Match::BOARD_ID}"
     Match.order(:id).last

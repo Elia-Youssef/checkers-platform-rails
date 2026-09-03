@@ -1,0 +1,213 @@
+/*
+ * Checkers: My games and the replay page.
+ *
+ * Loaded after application.css (the tokens) and board.css, because stylesheet_link_tag :app
+ * includes every file in this directory in alphabetical order. Nothing here is an image: the
+ * whole page is text, borders and the board drawn by board.css.
+ */
+
+/* My games ----------------------------------------------------------------- */
+
+.games {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.games__caption {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.games th,
+.games td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.games thead th {
+  background: var(--surface-sunken);
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.games tbody tr:last-child th,
+.games tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.games__mode {
+  white-space: nowrap;
+}
+
+.games__when {
+  display: block;
+  font-weight: 400;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+
+.games__count {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.games__history {
+  white-space: nowrap;
+}
+
+.games__link {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* The note a guest gets above their list: quieter than the lede, same measure. */
+.games__note {
+  margin: calc(var(--space-3) * -1) 0 var(--space-4);
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+  max-width: 60ch;
+}
+
+.games__history .games__link + .games__link {
+  margin-left: var(--space-3);
+}
+
+/* Narrow viewports: the five columns become one stacked card per game.
+ *
+ * Five columns of prose do not fit a 360 px screen: measured before this block, the table
+ * forced the document to 626 px against a 360 px viewport, so the whole page scrolled
+ * sideways. Below 40rem every part of the table becomes a block, the header row is hidden and
+ * each cell prints its column name from data-label, which is what keeps the values readable
+ * without a header to line them up under. The markup is unchanged, so the table is still a
+ * table for anything that reads the DOM, and the role attributes in the view keep it one for
+ * the accessibility tree, which a display change would otherwise flatten.
+ */
+@media (max-width: 40rem) {
+  .games,
+  .games caption,
+  .games tbody,
+  .games tr,
+  .games th,
+  .games td {
+    display: block;
+  }
+
+  .games {
+    border-radius: var(--radius);
+  }
+
+  /* The column names live in the cells below at this width. */
+  .games thead {
+    display: none;
+  }
+
+  .games__row {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .games tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .games__row th,
+  .games__row td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .games__mode {
+    white-space: normal;
+    font-size: 1.0625rem;
+    margin-bottom: var(--space-2);
+  }
+
+  /* "Opponent Guest" reads as a pair, so the label is quiet and the value is not. */
+  .games__row td::before {
+    content: attr(data-label) " ";
+    display: inline-block;
+    min-width: 5.5rem;
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .games__row td {
+    margin-top: var(--space-1);
+  }
+
+  .games__state,
+  .games__count,
+  .games__history {
+    white-space: normal;
+  }
+}
+
+/* Replay ------------------------------------------------------------------- */
+
+.replay {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.replay__heading {
+  font-size: 1rem;
+  margin-bottom: var(--space-2);
+}
+
+.replay__ply {
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+
+.replay__turn {
+  color: var(--ink-muted);
+  margin-bottom: var(--space-3);
+}
+
+.replay__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.replay__control {
+  min-width: 5.5rem;
+  text-align: center;
+}
+
+/* An inert control is still readable, and plainly not a control: the pointer does not change
+   over it and it is not in the tab order, because it is a span rather than a link. */
+.replay__control--inert {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.replay__players {
+  margin-bottom: var(--space-3);
+}
+
+.replay__stored {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.replay__position {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}

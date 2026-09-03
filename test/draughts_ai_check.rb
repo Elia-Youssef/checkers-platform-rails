@@ -19,7 +19,9 @@
 #
 #   1  strength   ten Medium against Easy games       fails under 8 Medium wins
 #   2  timing     four positions, twice, without and with YJIT
-#                                                     fails on depth under 8 or over 3.0 s
+#                                                     fails over 3.0 s, and on depth under 8
+#                                                     except on the widest fixture, where a
+#                                                     truthful deadline stop is allowed
 #   3  table      the transposition table must change neither a score nor a move
 #                                                     fails on any disagreement
 #   4  Hard against Medium, informational and never graded, only when DRAUGHTS_AI_HARD holds
@@ -45,6 +47,10 @@ PLY_CAP = 400
 # session-2 audit lowered HARD_FLOOR to 4 in a scratch copy and this check stayed green.
 REQUIRED_DEPTH = 8
 TIME_LIMIT = 3.0
+# The shallowest a deadline stop may be and still count as a real search, on the one fixture
+# that is allowed one (see check_depth). A literal, like the two above, so that moving
+# Draughts::AI::HARD_DEADLINE cannot move the bar that polices it.
+DEADLINE_MIN_DEPTH = 7
 HARD_PLY_CAP = 140
 FAILURES = []
 
@@ -122,6 +128,27 @@ MIDGAME_KEY = "r-rrr--rr--r------www-------wwww r"
 # floor fails this check instead of being found by the next audit.
 AUDIT_WORST_KEY = "-W-W----WWW-------RR----RR-R---- w"
 
+# What the computer actually searches on that board, which is not the board itself.
+#
+# Corrected on 2026-09-02 after the session-5 audit (its finding M1). This check used to time
+# AUDIT_WORST_KEY as it stands, that is White to move, which is the human's side: 155,788
+# nodes and about 1.7 s. The request a grader times is the human playing 4-8 and the computer
+# answering, so the position the search is actually given is this one, Red to move, and it
+# costs about 224,800 nodes, 40 percent more. Timing the human's side understated the very
+# scenario this fixture exists to guard. The board is derived by playing the move through the
+# engine rather than pasted, so the fixture cannot drift away from the position the
+# application reaches, and the derivation is asserted below.
+AUDIT_WORST_LEG = "4-8"
+AUDIT_WORST_REPLY_KEY = "-W-----WWWW-------RR----RR-R---- r"
+
+def audit_worst_reply_position
+  before = Draughts::Position.parse(AUDIT_WORST_KEY)
+  move = Draughts::Rules.find_move(before, AUDIT_WORST_LEG)
+  fail_with("#{AUDIT_WORST_LEG} is not legal in #{AUDIT_WORST_KEY}") if move.nil?
+
+  Draughts::Rules.apply(before, move)
+end
+
 def midgame_position
   game = Draughts::Game.new
   random = Random.new(MIDGAME_SEED)
@@ -174,16 +201,23 @@ end
 # ---------------------------------------------------------------- 2. timing
 puts
 puts "2. Hard timing: the depth reached and the seconds it took, measured twice"
+#
+# The third element is whether this fixture may come back below REQUIRED_DEPTH when the
+# search stopped at Draughts::AI's wall-clock deadline. Only the widest board may: see
+# check_depth.
 FIXTURES = [
-  [ "starting position", Draughts::Position.start ],
-  [ "after #{LINE_MOVES.join(" ")}", rubric_line_position ],
-  [ "midgame, #{MIDGAME_PLIES} plies of seeded Medium vs Medium", midgame_position ],
-  [ "ten kings, the session-2 audit's worst reachable position",
-    Draughts::Position.parse(AUDIT_WORST_KEY) ]
+  [ "starting position", Draughts::Position.start, false ],
+  [ "after #{LINE_MOVES.join(" ")}", rubric_line_position, false ],
+  [ "midgame, #{MIDGAME_PLIES} plies of seeded Medium vs Medium", midgame_position, false ],
+  [ "ten kings, the audit's worst, after the human plays #{AUDIT_WORST_LEG}",
+    audit_worst_reply_position, true ]
 ].freeze
 
 if FIXTURES[2][1].key != MIDGAME_KEY
   fail_with("the midgame fixture is #{FIXTURES[2][1].key}, expected #{MIDGAME_KEY}")
+end
+if FIXTURES[3][1].key != AUDIT_WORST_REPLY_KEY
+  fail_with("the worst-case fixture is #{FIXTURES[3][1].key}, expected #{AUDIT_WORST_REPLY_KEY}")
 end
 FIXTURES.each { |name, position| puts "    #{name.ljust(56)} #{position.key}" }
 
@@ -196,7 +230,7 @@ end
 def timing_block(label)
   puts "  #{label}"
   warm_up
-  FIXTURES.each_with_index do |(name, position), index|
+  FIXTURES.each_with_index do |(name, position, deadline_allowed), index|
     started = clock
     choice = Draughts::AI.choose(position, level: :hard, random: Random.new(7000 + index))
     wall = clock - started
@@ -204,13 +238,46 @@ def timing_block(label)
                 name, choice.depth, choice.nodes, wall, choice.elapsed, choice.nodes / wall,
                 choice.move.pdn, choice.forced? ? "  (forced)" : "",
                 choice.complete? ? "" : "  (deadline hit)")
-    if choice.depth < REQUIRED_DEPTH
-      fail_with("#{label}: #{name} reached depth #{choice.depth}, needs #{REQUIRED_DEPTH}")
-    end
+    check_depth(label, name, position, choice, deadline_allowed)
     next unless wall > TIME_LIMIT
 
     fail_with(format("%s: %s took %.3f s, over the %.1f s limit", label, name, wall,
                      TIME_LIMIT))
+  end
+end
+
+# The depth half of the timing bar. The time half is TIME_LIMIT and applies to every
+# fixture without exception.
+#
+# Three of the four fixtures have to reach REQUIRED_DEPTH: the two positions RUBRIC item
+# 10 grades and the mid-game board beside them. Nothing excuses those, which is what says
+# the deadline is not quietly paying for the budget on the positions that are graded.
+#
+# The fourth is the widest board the audits could reach by legal play, and since
+# 2026-09-03 Draughts::AI ships a wall-clock deadline that outranks the depth floor (the
+# owner's decision, so that the 3.0 s request pin holds on every position). That board
+# sits close to the deadline, so on a slower host it may truthfully come back at depth 7
+# instead of 8, and a shallower move is the intended answer there rather than a red build.
+# It still has to be an honest, legal answer: the search must say it stopped at the
+# deadline (complete false), it must have finished at least DEADLINE_MIN_DEPTH, and the
+# move it returns must be legal in the position it was given.
+def check_depth(label, name, position, choice, deadline_allowed)
+  return if choice.depth >= REQUIRED_DEPTH
+
+  unless deadline_allowed
+    fail_with("#{label}: #{name} reached depth #{choice.depth}, needs #{REQUIRED_DEPTH}")
+    return
+  end
+
+  if choice.complete?
+    fail_with("#{label}: #{name} reached depth #{choice.depth} without stopping at a " \
+              "deadline, so #{REQUIRED_DEPTH} was needed")
+  elsif choice.depth < DEADLINE_MIN_DEPTH
+    fail_with("#{label}: #{name} stopped at the deadline with only depth " \
+              "#{choice.depth}, needs #{DEADLINE_MIN_DEPTH}")
+  elsif !Draughts::Rules.legal_moves(position).include?(choice.move)
+    fail_with("#{label}: #{name} stopped at the deadline and returned " \
+              "#{choice.move.pdn}, which is not a legal move in #{position.key}")
   end
 end
 
@@ -308,8 +375,9 @@ end
 puts
 puts format("wall time %.1f s", clock - START_TIME)
 if FAILURES.empty?
-  puts "OK: Medium beat Easy #{tally[:win]} of #{STRENGTH_GAMES}, every Hard move reached " \
-       "depth #{REQUIRED_DEPTH} or more inside #{TIME_LIMIT} s, the table changed nothing."
+  puts "OK: Medium beat Easy #{tally[:win]} of #{STRENGTH_GAMES}, every Hard move came back " \
+       "inside #{TIME_LIMIT} s at depth #{REQUIRED_DEPTH} or more, or on the widest fixture " \
+       "at a truthful deadline stop, the table changed nothing."
   exit 0
 end
 FAILURES.each { |reason| puts "FAIL: #{reason}" }

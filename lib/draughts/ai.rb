@@ -10,9 +10,9 @@ module Draughts
   #
   #   :easy    one uniformly random legal move, no search at all
   #   :medium  negamax with alpha-beta to a fixed depth of MEDIUM_DEPTH plies
-  #   :hard    iterative deepening: every depth up to HARD_FLOOR is searched whatever the
-  #            clock says, no new depth starts after HARD_BUDGET seconds, and HARD_CAP is
-  #            the deepest iteration there will ever be
+  #   :hard    iterative deepening: every depth up to HARD_FLOOR is searched unless
+  #            HARD_DEADLINE seconds pass first, no new depth starts after HARD_BUDGET
+  #            seconds, and HARD_CAP is the deepest iteration there will ever be
   #
   # All three choose uniformly at random among equally scored moves, so games vary, and all
   # three take the random source as an argument. For Easy and Medium a seed is enough to fix
@@ -51,15 +51,20 @@ module Draughts
     HARD_ABORT_AFTER = 2.0
 
     # A stop that also applies at and below the depth floor, and so can return a depth under
-    # HARD_FLOOR. Off by default, because TASK-BRIEF 1.4 pins "always completing at least
-    # depth 8" and that pin is not this module's to change. A caller that would rather bound
-    # the wall clock than the depth passes hard_deadline: seconds to choose; the Choice then
-    # reports the depth that really finished and complete is false. Measured on the worst
-    # position the session-2 audit found (a ten-king endgame reachable by legal play), the
-    # floor now costs 1.32 s without YJIT, so the default needs no such stop; the option
-    # exists so the owner can decide with numbers rather than having to trust one. It is the
-    # fallback for choose's hard_deadline: keyword, and it is read only on the :hard path.
-    HARD_DEADLINE = nil
+    # HARD_FLOOR. It is on, at 2.5 seconds, by the owner's decision of 2026-09-03: of the two
+    # things TASK-BRIEF 1.4 asks for, "always completing at least depth 8" and "the whole HTTP
+    # request that includes a Hard move completes within 3.0 seconds", only one can hold on
+    # every legal position, because every extra king widens the tree and a slower position
+    # always exists. The request bound is the one that is kept, so the contract Hard offers is
+    # depth 8 unless 2.5 seconds of search have passed, and the depth it really reached is
+    # reported on the Choice with complete false. Measured over HTTP on the eleven-king board
+    # `-W-W----WWW-----W-RR----RR-R----` (White to move, Hard as Red), the unconditional floor
+    # took 2.007 to 3.042 s in eight runs, one of them past the 3.0 s pin; with this stop the
+    # same board answers at depth 7 well inside it. It costs nothing on the positions the
+    # rubric measures: the opening still reaches depth 11 in about 1.1 s and the position after
+    # 11-15 22-18 15x22 depth 10 or 11 in about 0.5 s, both far from 2.5 s. It is the fallback
+    # for choose's hard_deadline: keyword, and it is read only on the :hard path.
+    HARD_DEADLINE = 2.5
 
     # A chosen move and the evidence for it.
     #
@@ -132,9 +137,9 @@ module Draughts
     #   hard_deadline
     #            a wall-clock stop that also applies at and below the depth floor, so it can
     #            return a depth under HARD_FLOOR with complete false. Left out it falls back
-    #            to HARD_DEADLINE, which is nil, so the stop is off. Only :hard deepens
-    #            against a clock, so giving it to :easy or :medium raises ArgumentError
-    #            rather than being accepted and ignored.
+    #            to HARD_DEADLINE, the shipped 2.5 seconds. Only :hard deepens against a
+    #            clock, so giving it to :easy or :medium raises ArgumentError rather than
+    #            being accepted and ignored.
     #
     # Returns a Choice. Raises Draughts::IllegalMove when there is nothing to choose: a
     # finished game, a game part way through a jump sequence (the browser owns those legs,

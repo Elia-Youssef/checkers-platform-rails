@@ -339,6 +339,126 @@
   margin-bottom: var(--space-2);
 }
 
+/* Online play: the invite panel, the turn line, the draw offer and the rematch --------- */
+
+.invite {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.invite__heading {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.invite__note {
+  margin: 0 0 var(--space-3);
+  color: var(--ink-muted);
+}
+
+.invite__link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.invite__label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.invite__field {
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.invite__status:empty {
+  display: none;
+}
+
+.invite__status {
+  margin: var(--space-2) 0 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.invite__plain {
+  margin: var(--space-3) 0;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.invite__address {
+  font-family: var(--font-mono);
+}
+
+.controls__turn {
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+
+.controls__turn--yours {
+  color: var(--accent);
+}
+
+.status__draw {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--square-selected);
+  color: var(--square-last-move-fill);
+  font-weight: 600;
+}
+
+.rematch {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.rematch__note {
+  margin: 0;
+}
+
+.rematch__link {
+  margin-top: var(--space-2);
+}
+
+.join-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.join-form__label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.join-form__field {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
 /* Narrow viewports: one column, and the board still fills the width at 360 px. */
 @media (max-width: 52rem) {
   .match {
@@ -357,5 +477,36 @@
 
   .moves__list {
     max-height: 12rem;
+  }
+}
+
+/* Forced colours (Windows High Contrast and anything else that answers
+   forced-colors: active) -----------------------------------------------------
+
+   The board is meaning carried by colour: two kinds of square, a dot on every legal
+   destination, a ring around the selection and a deepened tint on the last move. Forced
+   colours repaints every background with the user's Canvas, which the round-2 accessibility
+   audit measured (finding M3): the dark square, the light square and the destination dot all
+   came back rgb(255, 255, 255), so the checkerboard was a plain white field and the dots were
+   invisible. The pieces survived, because an SVG fill is not forced.
+
+   forced-color-adjust: none is what the specification provides for exactly this, an image
+   the author has to draw: inside the board the palette stays the one above, and everywhere
+   else on the page the user's colours still win. The board is then outlined in the user's own
+   text colour so its edge is visible against whatever the page behind it became, and the two
+   player swatches, which are decoration beside the words Red and White, keep their colours
+   too so the turn indicator does not become one black bar for both players. */
+@media (forced-colors: active) {
+  .board,
+  .board *,
+  .player--turn,
+  .player__swatch,
+  .moves__move--latest {
+    forced-color-adjust: none;
+  }
+
+  .board {
+    outline: 3px solid CanvasText;
+    outline-offset: 2px;
   }
 }

@@ -11,6 +11,11 @@ class MatchTest < ActiveSupport::TestCase
     Match.open_hotseat(user: user, guest_key: guest_key)
   end
 
+  # An active online match: Ada on Red, Grace on White, the invite link already spent.
+  def online(creator: users(:one), joiner: users(:two), colour: "red")
+    Match.open_online(creator: creator, colour: colour).tap { |match| match.join!(joiner) }
+  end
+
   # Plays a whole PDN move one leg at a time, the way a browser does.
   def play(match, pdn)
     squares = pdn.split(/[-x]/).map(&:to_i)
@@ -438,10 +443,44 @@ class MatchTest < ActiveSupport::TestCase
     assert_raises(Draughts::IllegalMove) { match.undo_last_move! }
   end
 
+  test "an online seat is never held by a guest" do
+    match = online
+
+    match.red_guest_key = "g" * 32
+
+    assert_not match.valid?
+    assert_includes match.errors.full_messages.join(" "), "seats signed-in players only"
+    assert_raises(ActiveRecord::RecordInvalid) do
+      Match.create!(mode: "online", status: "waiting", invite_token: Match.generate_invite_token,
+                    red_guest_key: "g" * 32)
+    end
+  end
+
+  test "an online match always carries a URL-safe invite token of at least 20 characters" do
+    match = online
+
+    assert_operator match.invite_token.length, :>=, Match::MINIMUM_TOKEN_LENGTH
+    assert_match Match::TOKEN_FORMAT, match.invite_token
+    match.invite_token = "short"
+    assert_not match.valid?
+    match.invite_token = "a b/c" + ("x" * 20)
+    assert_not match.valid?
+    match.invite_token = nil
+    assert_not match.valid?
+  end
+
+  test "play again online means the same mode with the colours swapped" do
+    match = online
+
+    assert_equal({ mode: "online", colour: "white" }, match.play_again_params(user: users(:one)))
+    assert_equal({ mode: "online", colour: "red" }, match.play_again_params(user: users(:two)))
+    assert_equal({ mode: "online" }, match.play_again_params(user: users(:three)))
+    assert_equal({ mode: "online" }, match.play_again_params)
+  end
+
   test "undo is refused in an online match even when the engine would allow it" do
-    match = hotseat
+    match = online
     play(match, "11-15")
-    match.update!(mode: "online")
 
     assert_not match.can_undo?
     assert_raises(Draughts::IllegalMove) { match.undo_last_move! }
@@ -532,7 +571,10 @@ class MatchTest < ActiveSupport::TestCase
     match.mode = "ai"
     match.ai_level = "hard"
     assert_equal "Match against the computer (Hard)", match.heading
-    assert_equal({ mode: "ai", ai_level: "hard" }, match.play_again_params)
+    # The keys are the names the create form posts. This row is a hot-seat row wearing the
+    # ai mode, so both seats are taken and it names no human colour; a real computer match
+    # carries one, which ComputerMatchTest pins.
+    assert_equal({ mode: "ai", level: "hard" }, match.play_again_params)
   end
 
   # ---- H2 and L3: one sentence per state, and it is truthful ---------------------------

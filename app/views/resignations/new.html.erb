@@ -22,11 +22,11 @@
 
 <div class="match">
   <div class="match__board">
-    <%= render "matches/board", match: @match, game: @game, selected: nil, viewer: true %>
+    <%= render "matches/board", match: @match, game: @game, selected: nil, seats: [] %>
   </div>
 
   <div class="match__aside">
     <%= render "matches/status", match: @match, game: @game %>
-    <%= render "matches/moves", game: @game %>
+    <%= render "matches/moves", pairs: move_pairs(@game), highlight: @game.plies %>
   </div>
 </div>

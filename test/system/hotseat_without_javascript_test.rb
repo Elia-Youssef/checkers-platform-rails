@@ -36,7 +36,8 @@ class HotseatWithoutJavascriptTest < ApplicationRackTestCase
 
     click_square(22)
     assert_equal [ "11-15", "22-18", "15x22" ], move_list
-    assert_equal "Square 22, Red man", square_label(22)
+    # Square 22 is where the jump landed, and the name says so (round-2 audit, M1).
+    assert_equal "Square 22, Red man, moved here", square_label(22)
     assert_equal "Square 18, empty", square_label(18), "the jumped White man is still on 18"
     assert_selector ".player__count", text: "11 pieces"
   end
@@ -89,7 +90,7 @@ class HotseatWithoutJavascriptTest < ApplicationRackTestCase
 
     click_square(2)
 
-    assert_equal "Square 2, White king", square_label(2)
+    assert_equal "Square 2, White king, moved here", square_label(2)
     assert_equal "Square 6, Red man", square_label(6),
       "the new king kept jumping and took the man on 6"
     assert_selector ".moves__move--latest", text: "20x11x2"

@@ -10,6 +10,10 @@
 # Ignore all environment files.
 /.env*
 
+# Keep deployment credentials and local secret references out of version control.
+/.kamal/secrets
+/config/credentials/*.key
+
 # Ignore all logfiles and tempfiles.
 /log/*
 /tmp/*
@@ -30,6 +34,21 @@
 
 /public/assets
 
+# Ignore local dependency and editor artifacts.
+/vendor/bundle
+/node_modules
+/.ruby-lsp
+.DS_Store
+
+# Public documentation will be added in a future release.
+*.md
+*.markdown
+*.mdx
+
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# The secret the README's alternative production recipe writes here, for people who run the
+# production image without the credentials key. It signs cookies, so it belongs beside the
+# master key rather than in a commit.
+/checkers.secret

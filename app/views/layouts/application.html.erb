@@ -9,6 +9,12 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
+    <%# Turbo 8 fetches a link's page when the pointer rests on it, to make the click feel
+        instant. Opening an invite link is what takes the free seat in a match, so a fetch
+        nobody asked for is a join nobody asked for: prefetching is off for the whole
+        application. Nothing here is slow enough to need it. %>
+    <meta name="turbo-prefetch" content="false">
+
     <%= yield :head %>
 
     <%# The three icons below are the Rails generated favicons under public/. They are the
@@ -30,13 +36,18 @@
         <%= link_to "Checkers", root_path, class: "masthead__brand" %>
 
         <nav class="masthead__nav" aria-label="Main">
-          <%# My games arrives with the history pages in a later phase. It is inert rather
-              than a link so that nothing in the navigation leads to a dead page. %>
-          <span class="masthead__link masthead__link--pending" aria-disabled="true">My games</span>
+          <%# My games is there for everyone, signed in or not: a guest's matches are listed
+              under the key in their browser's cookie, and become the account's the moment
+              they sign up or sign in. %>
+          <%= link_to "My games", matches_path, class: "masthead__link" %>
 
           <% if authenticated? %>
             <span class="masthead__identity"><%= Current.user&.display_name %></span>
-            <%= button_to "Sign out", session_path, method: :delete, class: "button button--quiet" %>
+            <%# A full page load, like signing in and signing up: it ends the document, and the
+                Action Cable socket with it, at the moment this browser stops being this user
+                (see the note on the sign-in form). %>
+            <%= button_to "Sign out", session_path, method: :delete,
+                  class: "button button--quiet", form: { data: { turbo: false } } %>
           <% else %>
             <%= link_to "Sign in", new_session_path, class: "masthead__link" %>
             <%= link_to "Sign up", new_registration_path, class: "masthead__link" %>

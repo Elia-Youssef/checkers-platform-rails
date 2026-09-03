@@ -1,8 +1,16 @@
-<%# The move list in PDN, as numbered pairs, with the latest move highlighted. The pairing and
-    the notation come from Draughts::PDN, so the list and an exported .pdn file can never
-    disagree. A whole jump sequence is one entry (24x15x8), because it is one move. %>
-<% pairs = move_pairs(game) %>
-<div id="<%= Match::MOVES_ID %>" class="moves">
+<%# The move list in PDN, as numbered pairs, with one move highlighted. The pairing and the
+    notation come from Draughts::PDN, so the list and an exported .pdn file can never
+    disagree. A whole jump sequence is one entry (24x15x8), because it is one move.
+
+    Two locals, so that the match page and the replay page share this list: pairs is what
+    move_pairs (from the engine's game) or move_pairs_from_rows (from the stored move rows)
+    built, and highlight is the ply to mark. The match page highlights the latest move; the
+    replay page highlights the ply it is showing.
+
+    The moves controller scrolls the highlighted entry into the list's own scroll box, here and
+    on every Turbo Stream replacement of this fragment. It holds no rule and no data; with
+    JavaScript off the list is the same list and the reader scrolls it by hand. %>
+<div id="<%= Match::MOVES_ID %>" class="moves" data-controller="moves">
   <h2 class="moves__heading">Moves</h2>
   <% if pairs.empty? %>
     <p class="moves__empty">No moves yet.</p>
@@ -17,7 +25,15 @@
             <span class="moves__move moves__move--none">...</span>
           <% end %>
           <% [ red, white ].compact.each do |entry| %>
-            <span class="moves__move<%= " moves__move--latest" if entry.ply == game.plies %>"><%= entry.pdn %></span>
+            <%# aria-current, not the colour alone: the highlight is the whole point of the
+                replay page and a screen reader was told nothing about it (round-2
+                accessibility audit, finding M1). The tag helper drops the attribute on every
+                other entry rather than writing aria-current="". %>
+            <%= tag.span entry.pdn,
+                  class: class_names("moves__move",
+                                     "moves__move--latest" => entry.ply == highlight),
+                  aria: { current: ("true" if entry.ply == highlight) },
+                  data: { ply: entry.ply } %>
           <% end %>
         </li>
       <% end %>

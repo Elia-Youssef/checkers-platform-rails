@@ -1,32 +1,112 @@
 <%# The controls for the seats this visitor holds, one branch per state of the match.
 
-    Undo and Resign disappear while a jump sequence is pending and whenever the match is not
-    active, and the server refuses both in those states as well, so a forged post gets 422
-    rather than a hidden button's effect. A viewer sees a note and nothing else.
+    This fragment is per seat: it carries Resign, Undo, Offer draw, Accept and Decline, and on
+    a finished online match the invite link for the rematch. It is broadcast on the seat
+    stream of the player it was rendered for and never on the viewer stream, so a viewer can
+    neither gain a control nor read a rematch token. seats is the empty array for a viewer,
+    one colour for an online player, and both for the browser that plays hot-seat.
 
-    The waiting branch is what a match with a free seat shows; phase 6 replaces its note with
-    the invite panel (the link, the copy button and Cancel). %>
+    Every button here is also a server rule: Undo, Resign, a draw offer and its answer are all
+    refused by the model in the states that hide them, so a forged post gets 422 or 403 rather
+    than the effect of a button that was never shown. %>
+<% viewer = seats.empty? %>
 <div id="<%= Match::CONTROLS_ID %>" class="controls">
   <% if viewer %>
     <p class="controls__note" role="note">
-      You are viewing this match. Only its two players can move, undo or resign.
+      You are viewing this match. Only its two players can move, undo, resign or offer a draw.
     </p>
+    <% if match.waiting? %>
+      <p class="controls__note" role="note">
+        It is waiting for a second player. Only somebody holding the invite link can take the
+        free seat.
+      </p>
+    <% end %>
+    <%# The history of a finished match is public in the same way the board is: a viewer can
+        read the move list on this page already, so they can replay it and download it. %>
+    <% if match.finished? %>
+      <p class="controls__result"><%= result_sentence(match) %>.</p>
+      <%= render "matches/history_links", match: match %>
+    <% end %>
+  <% elsif match.cancelled? %>
+    <p class="controls__note" role="note">
+      This match was cancelled before anybody joined it, and its invite link no longer works.
+    </p>
+    <div class="button-row">
+      <%= link_to "Back to the home page", root_path, class: "button button--quiet" %>
+    </div>
   <% elsif match.finished? %>
     <p class="controls__result"><%= result_sentence(match) %>.</p>
+    <%= render "matches/rematch", match: match, seats: seats %>
+    <%# Replay and Export PDN, beside Play again, on every finished match (TASK-BRIEF 1.6). %>
+    <%= render "matches/history_links", match: match %>
     <div class="button-row">
-      <%= button_to "Play again", matches_path, params: match.play_again_params, class: "button" %>
+      <% if match.online? %>
+        <%# Online, Play again is a rematch: a new waiting match with the colours swapped
+            whose link is posted straight into this one for the opponent. Pressing it second
+            joins the rematch the other player already started rather than making a third. %>
+        <%= button_to "Play again", match_rematch_path(match), class: "button" %>
+      <% else %>
+        <%= button_to "Play again", matches_path, params: match.play_again_params, class: "button" %>
+      <% end %>
       <%= link_to "Back to the home page", root_path, class: "button button--quiet" %>
     </div>
   <% elsif match.waiting? %>
     <p class="controls__note" role="note">
-      This match has not started yet: it is waiting for a second player to take the free seat.
-      Nothing on the board can be moved until then.
+      This match has not started yet: it is waiting for a second player to take the
+      <%= side_label(match.free_seat) %> seat. Send them the invite link above. Nothing on the
+      board can be moved until then.
     </p>
   <% elsif game.pending? %>
+    <% if match.playable_by?(seats) %>
+      <p class="controls__note" role="note">
+        A jump is in progress. Finish it with the piece on square <%= game.locked_square %>:
+        Undo, Resign and draw offers come back when the sequence ends.
+      </p>
+    <% else %>
+      <p class="controls__note" role="note">
+        <%= match.seat_name(match.side_to_move) %> is part way through a jump from square
+        <%= game.locked_square %>. Your controls come back when the sequence ends.
+      </p>
+    <% end %>
+  <% elsif match.computer_to_move? %>
+    <%# The computer answers inside the request that recorded the human's move, so a match at
+        rest never sits here. It can only be reached when that reply could not be played and
+        was logged and dropped, which must not leave the board with no way forward: Undo takes
+        the human's move back so it can be played again. %>
     <p class="controls__note" role="note">
-      A jump is in progress. Finish it with the piece on square <%= game.locked_square %>:
-      Undo and Resign come back when the sequence ends.
+      <%= match.computer_name %> has not answered your last move. Undo takes it back so you
+      can play again.
     </p>
+    <div class="button-row">
+      <% if match.can_undo? %>
+        <%= button_to "Undo", match_undo_path(match), class: "button button--quiet" %>
+      <% end %>
+      <%= link_to "Resign", new_match_resignation_path(match), class: "button button--quiet" %>
+    </div>
+  <% elsif match.online? %>
+    <% seat = seats.first %>
+    <p class="controls__turn<%= " controls__turn--yours" if match.playable_by?(seats) %>">
+      <%= online_turn_sentence(match, seats) %>
+    </p>
+
+    <% if match.draw_offer_for?(seat) %>
+      <p class="controls__note" role="note"><%= draw_offer_sentence(match) %></p>
+      <div class="button-row">
+        <%= button_to "Accept the draw", match_draw_accept_path(match), class: "button" %>
+        <%= button_to "Decline", match_draw_decline_path(match), class: "button button--quiet" %>
+      </div>
+    <% elsif match.draw_offered_by?(seat) %>
+      <p class="controls__note" role="note">
+        You have offered a draw. Waiting for <%= opposing_seat_name(match, seat) %> to answer.
+      </p>
+    <% end %>
+
+    <div class="button-row">
+      <% if match.can_offer_draw?(seat) %>
+        <%= button_to "Offer a draw", match_draw_offer_path(match), class: "button button--quiet" %>
+      <% end %>
+      <%= link_to "Resign", new_match_resignation_path(match), class: "button button--quiet" %>
+    </div>
   <% else %>
     <div class="button-row">
       <% if match.can_undo? %>

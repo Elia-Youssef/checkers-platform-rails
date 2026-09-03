@@ -32,9 +32,10 @@
   --square-selected: #f2c14e;
   --square-target: #7fd4a2;
   /* The last move is a bright inset ring over a deepened square, not a mid-brown wash. A wash
-     that a red disc and a cream disc are both 3:1 from does not exist: they are only 4.2:1
-     apart, and 3:1 on each side needs 9:1. Deepening the square instead puts both discs well
-     clear of it, and the ring carries the marker's own 6:1 against an ordinary dark square. */
+     that a red disc and a cream disc are both 3:1 from does not exist: the two discs are only
+     2.87:1 apart (measured, tests/build/s4/contrast.py), and one wash 3:1 clear of both would
+     need 9:1 between them. Deepening the square instead puts both discs well clear of it, and
+     the ring carries the marker's own 6:1 against an ordinary dark square. */
   --square-last-move: #e0a15e;
   --square-last-move-fill: #1d1206;
 
@@ -42,7 +43,12 @@
   --surface: #f7f4ef;
   --surface-raised: #ffffff;
   --surface-sunken: #ece6dc;
-  --border: #d5cdc0;
+  /* The edge of every card, field and table rule. Two light surfaces cannot be 3:1 apart
+     (white on this page is 1.09:1), so the border is what separates a panel from the page,
+     and it was #d5cdc0, which is 1.44:1 against the page and not an edge at all (round-2
+     accessibility audit, finding L6). This is 3.39:1 against the page and 3.71:1 against a
+     white card, so both sides of it clear the 3:1 non-text threshold. */
+  --border: #8f8371;
   --ink: #23201c;
   --ink-muted: #5d564c;
   --accent: #1f5f4b;
@@ -77,6 +83,18 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* The hidden attribute wins over any rule in this file.
+ *
+ * The user agent's own rule for [hidden] is display: none, but it is a user-agent rule, and
+ * every author rule beats it: the bare `button` selector further down sets display:
+ * inline-block, which made the invite panel's Copy link button visible with JavaScript
+ * switched off, and clickable, and dead (round-1 audit, finding M2, measured at 108 by 42.8
+ * px on a page whose script never ran). Anything this application writes as hidden is hidden
+ * until something removes the attribute, whatever else matches it. */
+[hidden] {
+  display: none !important;
 }
 
 html {
@@ -132,6 +150,21 @@ a {
   top: var(--space-3);
 }
 
+/* Off screen but still read: the live region the match page announces changes through.
+   Clipped rather than display:none or visibility:hidden, both of which take an element out
+   of the accessibility tree and so out of a screen reader's earshot. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Masthead ---------------------------------------------------------------- */
 
 .masthead {
@@ -174,11 +207,6 @@ a {
 
 .masthead__link:hover {
   border-bottom-color: currentColor;
-}
-
-.masthead__link--pending {
-  color: rgba(230, 210, 172, 0.6);
-  cursor: default;
 }
 
 .masthead__identity {
@@ -386,6 +414,51 @@ input[type="submit"][disabled] {
   color: var(--ink-muted);
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* The create form on a mode card: fieldsets of radio buttons, because a choice made with
+   radio buttons needs no JavaScript, carries its own accessible grouping through the legend,
+   and posts exactly the parameter names the match stores. */
+.mode__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.choice {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.choice__legend {
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0 var(--space-1);
+}
+
+.choice__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+}
+
+.choice__option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.choice__option label {
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+
+.choice__option input {
+  accent-color: var(--accent);
 }
 
 /* Narrow viewports: the board has to stay playable at 360 px, so nothing in the shell may

@@ -219,8 +219,9 @@ module Draughts
       #                  running after this many seconds is abandoned and its partial result
       #                  thrown away, and no iteration is started that the growth estimate
       #                  says would reach it
-      #   hard_deadline  a hard stop that also applies at and below the floor, off by
-      #                  default; see below
+      #   hard_deadline  a hard stop that also applies at and below the floor, nil in this
+      #                  method's own default and 2.5 seconds in what Draughts::AI passes;
+      #                  see below
       #   cap            the deepest iteration that will ever be started
       #
       # Two things stop a deeper iteration, and both are needed. The budget is the rule the
@@ -232,12 +233,15 @@ module Draughts
       # only when a new depth may not start, and the depth floor is what guarantees the
       # search is never shallow.
       #
-      # hard_deadline is the one thing here that can break the depth floor, which is why it
-      # is nil by default and why Draughts::AI does not pass it unless asked. TASK-BRIEF 1.4
-      # pins "always completing at least depth 8", so the floor is unconditional as shipped;
-      # a caller that would rather have a bounded answer than a deep one sets this and gets
-      # the deepest depth that did finish, reported truthfully, with complete false. Depth 1
-      # is never abandoned, so a move always comes back.
+      # hard_deadline is the one thing here that can break the depth floor, so this method
+      # leaves it nil and every caller decides. Draughts::AI passes it: HARD_DEADLINE is 2.5
+      # seconds by the owner's decision of 2026-09-03, because TASK-BRIEF 1.4's "always
+      # completing at least depth 8" and its 3.0 second request pin cannot both hold on every
+      # legal position, and the request bound is the one that is kept. So the floor is
+      # unconditional here only for a caller that passes hard_deadline: nil, and what the
+      # application ships is the bounded answer: the deepest depth that did finish, reported
+      # truthfully, with complete false. Depth 1 is never abandoned, so a move always comes
+      # back.
       #
       # exact_leaves is false here and true for the fixed-depth search Medium uses: see
       # leaf_value for what the horizon gives up and what it buys.
@@ -302,7 +306,8 @@ module Draughts
       #
       # Depth 1 never has one: it costs a handful of nodes and it is what guarantees that a
       # move comes back at all. Above the floor, abort_after applies. At and below the
-      # floor, only hard_deadline applies, and it is off unless a caller asks for it.
+      # floor, only hard_deadline applies, and it is off only for a caller that passes nil,
+      # which Draughts::AI does not.
       def self.iteration_deadline(started, depth, floor, abort_after, hard_deadline)
         return nil if depth <= 1
 

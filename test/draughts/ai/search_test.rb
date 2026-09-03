@@ -336,8 +336,10 @@ class DraughtsAISearchTest < Minitest::Test
                                   abort_after: nil, random: Random.new(1)).score
   end
 
-  # The optional stop that outranks the depth floor. Off by default, because TASK-BRIEF 1.4
-  # pins the floor; a caller that would rather bound the clock asks for it by name.
+  # The stop that outranks the depth floor. Off in this method's own default, because
+  # TASK-BRIEF 1.4 pins the floor; a caller that would rather bound the clock asks for it by
+  # name, and Draughts::AI does, at HARD_DEADLINE seconds (the owner's decision of
+  # 2026-09-03, so that the 3.0 s request pin holds on every position).
   def test_the_optional_hard_deadline_stops_below_the_floor_and_reports_the_truth
     clock = FakeClock.new(step: 1.0)
     result = Search.iterative(Position.start, floor: 8, cap: 14, budget: 1e9,
@@ -357,7 +359,8 @@ class DraughtsAISearchTest < Minitest::Test
 
     assert_equal 4, result.depth
     assert_predicate result, :complete?
-    assert_nil Draughts::AI::HARD_DEADLINE, "the option ships off"
+    assert_in_delta 2.5, Draughts::AI::HARD_DEADLINE, 1e-9,
+                    "this method's default is off; the shipped one Draughts::AI passes is 2.5"
   end
 
   def test_the_hard_deadline_takes_the_earlier_of_the_two_stops
