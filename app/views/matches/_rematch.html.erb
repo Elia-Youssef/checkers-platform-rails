@@ -1,0 +1,28 @@
+<%# The rematch, on a finished online match: a link straight into the new game.
+
+    It lives inside the controls fragment, which is per seat, because the link carries an
+    invite token. On a shared stream every viewer of the finished match would be handed the
+    token and could take the seat the rematch is being offered to.
+
+    The player who pressed Play again is already seated in the new match and sees where it is;
+    the opponent sees the invitation and joins with one click. A path, not an address, because
+    this fragment is rendered for a broadcast as well, where there is no host. %>
+<% rematch = match.rematch_match %>
+<% if rematch&.waiting? && seats.any? %>
+  <% player = match.seat_user(seats.first) %>
+  <% mine = rematch.seats_held_by(user: player) %>
+  <div class="rematch">
+    <% if mine.any? %>
+      <p class="rematch__note" role="status">
+        You have started a rematch, playing <%= side_label(mine.first) %> this time.
+        <%= link_to "Open it", match_path(rematch), class: "rematch__link" %>
+        and wait there, or send the invite link from that page.
+      </p>
+    <% elsif rematch.invite_open? %>
+      <p class="rematch__note" role="status">
+        <%= rematch.creator&.display_name %> has started a rematch with the colours swapped.
+        <%= link_to "Join the rematch", join_path(rematch.invite_token), class: "button rematch__link" %>
+      </p>
+    <% end %>
+  </div>
+<% end %>

@@ -1,0 +1,9 @@
+<%# The field that takes an invite link or the bare code from one. It posts to /join, which
+    reads the code out of whatever was pasted and sends the visitor to /join/<code>, so both
+    forms of the input reach the same place. %>
+<%= form_with url: joins_path, method: :post, class: "join-form" do %>
+  <label class="join-form__label" for="invite">Invite link or code</label>
+  <%= text_field_tag :invite, invite, id: "invite", class: "join-form__field",
+        placeholder: "http://localhost:3000/join/...", autocomplete: "off", spellcheck: "false" %>
+  <%= submit_tag "Join the match", class: "button", name: nil %>
+<% end %>

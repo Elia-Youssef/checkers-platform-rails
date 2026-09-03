@@ -1,0 +1,15 @@
+<% content_for :title, "Join a match" %>
+
+<h1>Join a match</h1>
+
+<p class="lede">
+  Somebody sent you an invite link. Paste the whole address, or just the code at the end of
+  it, and you take the free seat in their match.
+</p>
+
+<%= render "joins/form", invite: @invite %>
+
+<p class="mode__note">
+  Online play needs an account in both seats, so you are asked to sign in first if you are
+  not already. A link only works once, and the player who created a match cannot join it.
+</p>

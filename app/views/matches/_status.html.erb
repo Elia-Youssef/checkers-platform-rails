@@ -11,10 +11,19 @@
       Waiting for a second player
     <% elsif game.pending? %>
       <%= turn_sentence(match) %>: finish the jump from square <%= game.locked_square %>
+    <% elsif match.cancelled? %>
+      This match was cancelled
     <% else %>
       <%= turn_sentence(match) %>
     <% end %>
   </p>
+
+  <%# A pending draw offer is part of the state of the match, not of one seat, so it is said
+      here where the opponent, the offerer and any viewer all read the same sentence. The
+      Accept and Decline buttons are in the controls fragment, which is per seat. %>
+  <% if match.draw_pending? %>
+    <p class="status__draw" role="status"><%= draw_offer_sentence(match) %></p>
+  <% end %>
 
   <%# What the computer's search did for its last move, read off the move row rather than
       from a flash, so it is still there after a reload, in a second browser and after a
@@ -29,7 +38,14 @@
         <span class="player__swatch player__swatch--<%= side %>" aria-hidden="true"></span>
         <span class="player__side"><%= side_label(side) %></span>
         <span class="player__name"><%= match.seat_name(side) %></span>
-        <span class="player__count"><%= pluralize(shown.count(Draughts::Side.cast(side)), "piece") %></span>
+        <%# A seat nobody holds has no piece count: the men are on the board, but "Open seat,
+            12 pieces" reads as though somebody were playing them (session-6 audit, finding L3;
+            the cancelled case came from the diff review's out-of-scope list). %>
+        <% if (match.waiting? || match.cancelled?) && !match.seat_taken?(side) %>
+          <span class="player__count player__count--empty">waiting to join</span>
+        <% else %>
+          <span class="player__count"><%= pluralize(shown.count(Draughts::Side.cast(side)), "piece") %></span>
+        <% end %>
       </li>
     <% end %>
   </ul>

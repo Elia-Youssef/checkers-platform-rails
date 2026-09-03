@@ -9,6 +9,12 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
+    <%# Turbo 8 fetches a link's page when the pointer rests on it, to make the click feel
+        instant. Opening an invite link is what takes the free seat in a match, so a fetch
+        nobody asked for is a join nobody asked for: prefetching is off for the whole
+        application. Nothing here is slow enough to need it. %>
+    <meta name="turbo-prefetch" content="false">
+
     <%= yield :head %>
 
     <%# The three icons below are the Rails generated favicons under public/. They are the

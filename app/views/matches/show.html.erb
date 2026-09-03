@@ -1,17 +1,29 @@
-<%# The heading comes from the match, not from this file, so the modes phases 5 and 6 add
-    name themselves without a view change. %>
+<%# The heading comes from the match, not from this file, so every mode names itself. %>
 <% content_for :title, @match.heading %>
+
+<%# The live subscription. Turbo signs the stream name with the application's secret before
+    it reaches the page, and this page only ever names the stream this visitor is entitled
+    to: the seat they hold in an online match, or the viewer stream. A page that is the only
+    thing able to change the match (hot-seat, or the human in a computer match) subscribes to
+    nothing, so it can never be sent an echo of its own move. Nothing is authorised by the
+    socket in any case: every action is authorised per request by MatchScoped. %>
+<%= turbo_stream_from(*@match.stream_for(@audience)) if @audience %>
 
 <h1 class="match__heading"><%= @match.heading %></h1>
 
 <div class="match">
   <div class="match__board">
-    <%= render "matches/board", match: @match, game: @game, selected: @selected, viewer: @viewer %>
+    <%= render "matches/board", match: @match, game: @game, selected: @selected, seats: @seats %>
   </div>
 
   <div class="match__aside">
     <%= render "matches/status", match: @match, game: @game %>
+    <%# The invite panel is rendered here, with the absolute address, because a broadcast has
+        no host to build one with; a broadcast renders it empty, which is right, since a match
+        that has just been joined or cancelled has no invite left to show. %>
+    <%= render "matches/invite", match: @match, seats: @seats,
+          link: (join_url(@match.invite_token) if @match.invite_open?) %>
     <%= render "matches/moves", game: @game %>
-    <%= render "matches/controls", match: @match, game: @game, viewer: @viewer %>
+    <%= render "matches/controls", match: @match, game: @game, seats: @seats %>
   </div>
 </div>

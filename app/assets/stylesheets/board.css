@@ -339,6 +339,126 @@
   margin-bottom: var(--space-2);
 }
 
+/* Online play: the invite panel, the turn line, the draw offer and the rematch --------- */
+
+.invite {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.invite__heading {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.invite__note {
+  margin: 0 0 var(--space-3);
+  color: var(--ink-muted);
+}
+
+.invite__link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.invite__label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.invite__field {
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.invite__status:empty {
+  display: none;
+}
+
+.invite__status {
+  margin: var(--space-2) 0 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.invite__plain {
+  margin: var(--space-3) 0;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.invite__address {
+  font-family: var(--font-mono);
+}
+
+.controls__turn {
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+
+.controls__turn--yours {
+  color: var(--accent);
+}
+
+.status__draw {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--square-selected);
+  color: var(--square-last-move-fill);
+  font-weight: 600;
+}
+
+.rematch {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.rematch__note {
+  margin: 0;
+}
+
+.rematch__link {
+  margin-top: var(--space-2);
+}
+
+.join-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.join-form__label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.join-form__field {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
 /* Narrow viewports: one column, and the board still fills the width at 360 px. */
 @media (max-width: 52rem) {
   .match {

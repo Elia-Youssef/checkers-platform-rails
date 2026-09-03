@@ -34,6 +34,21 @@
 #   Undo                  hot-seat and versus the computer only. No seat -> 403; online, a
 #                         jump pending, nothing to undo, or the match over -> 422.
 #
+#   Draw offer,           online only, any seat holder. No seat -> 403. Not online, not
+#   accept, decline       active, an offer already pending, no offer to answer, or answering
+#                         your own offer -> 422. Only the seated opponent can answer, which
+#                         is the model's rule (Match#draw_answer_refusal), not the page's.
+#
+#   Cancel                a seat holder of a waiting online match. No seat -> 403; a match
+#                         somebody has already joined, or one that is over -> 422.
+#
+#   Rematch               a seat holder of a finished online match. No seat -> 403;
+#                         everything else -> 422.
+#
+#   Join                  JoinsController, not this concern: it finds the match by its invite
+#                         token instead of by id, requires a signed-in user, and refuses the
+#                         creator and a spent link with a notice.
+#
 # 422 is written :unprocessable_content. Rack 3.2.7 removed the older :unprocessable_entity
 # symbol. Every 403 answer has an empty body and every 422 answer leaves the row untouched.
 # ---------------------------------------------------------------------------------------
@@ -53,6 +68,9 @@ module MatchScoped
       @match = Match.find(params[:match_id] || params[:id])
       @seats = @match.seats_held_by(**match_identity)
       @viewer = @seats.empty?
+      # Which live stream this page listens on, or nil when this browser is the only thing
+      # that can change the match. See MatchBroadcasts.
+      @audience = @match.live_audience(@seats)
     end
 
     # Who is asking: a signed-in user, or the browser's guest key. Both are set for every
@@ -93,7 +111,7 @@ module MatchScoped
     # Plain request: a redirect back to the match page when the action was accepted, and a
     # re-render of the match page with the 422 when it was not, showing the position before
     # the attempt.
-    def render_match(status: :ok)
+    def render_match(status: :ok, notice: nil)
       @game = @match.game
       @selected = nil
 
@@ -101,15 +119,21 @@ module MatchScoped
       # when the client sends Accept: */*, which is what curl and a scripted walkthrough send,
       # and the plain path is the one that must work for them. Turbo asks for
       # text/vnd.turbo-stream.html explicitly and still gets the streams.
+      #
+      # A notice is carried by the redirect for a plain client and put in the flash zone of
+      # the stream response for a Turbo one, which is the same message either way.
       respond_to do |format|
         format.html do
           if status == :ok
-            back_to_match
+            back_to_match(**(notice ? { notice: notice } : {}))
           else
             render template: "matches/show", status: status
           end
         end
-        format.turbo_stream { render template: "matches/update", status: status }
+        format.turbo_stream do
+          flash.now[:notice] = notice if notice
+          render template: "matches/update", status: status
+        end
       end
     end
 
