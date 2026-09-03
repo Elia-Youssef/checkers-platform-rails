@@ -55,11 +55,11 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_equal %w[red white], match.seats_held_by(guest_key: signed_cookie(:guest_key))
   end
 
-  test "a mode that is not built yet creates nothing" do
+  test "a mode that does not exist creates nothing" do
     get root_path
 
     assert_no_difference -> { Match.count } do
-      post matches_path, params: { mode: "online" }
+      post matches_path, params: { mode: "sideways" }
     end
     assert_redirected_to root_path
   end
@@ -554,7 +554,7 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_select "button.square:not([disabled])", 0, "a waiting match offered a live square"
     assert_select "button[data-legal-targets]", 0
     assert_select "form[action=?]", match_moves_path(match), 0
-    assert_select ".controls__note", text: /waiting for a second player to take the free seat/
+    assert_select ".controls__note", text: /waiting for a second player to take the White seat/
     assert_select "form[action=?]", match_undo_path(match), 0
     assert_select "a[href=?]", new_match_resignation_path(match), 0
     assert_select ".player--turn", 0
@@ -702,7 +702,8 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     # An active online match with Ada on Red and Grace on White. Phase 6 builds these for real;
     # phase 4 only has to behave correctly if one exists.
     def online_match
-      Match.create!(mode: "online", status: "active",
+      Match.create!(mode: "online", status: "active", invite_token: Match.generate_invite_token,
+                    invite_token_used_at: Time.current,
                     red_user: users(:one), white_user: users(:two))
     end
 

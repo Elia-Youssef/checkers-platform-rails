@@ -32,6 +32,32 @@ module MatchesHelper
     "#{side_label(match.side_to_move)} to move"
   end
 
+  # The same fact from one player's seat: "Your move" or "Waiting for Grace to move". Used in
+  # the controls fragment, which is rendered once per seat, while the status line keeps the
+  # neutral sentence everyone reads.
+  def online_turn_sentence(match, seats)
+    return turn_sentence(match) if seats.blank?
+
+    if match.playable_by?(seats)
+      "Your move."
+    else
+      "Waiting for #{match.seat_name(match.side_to_move)} to move."
+    end
+  end
+
+  # The name in the other seat, from one seat: "Grace".
+  def opposing_seat_name(match, side)
+    match.seat_name(Draughts::Side.opponent(Draughts::Side.cast(side)).to_s)
+  end
+
+  # "Ada (Red) has offered a draw." nil when no offer is pending.
+  def draw_offer_sentence(match)
+    return nil unless match.draw_pending?
+
+    side = match.draw_offered_by
+    "#{match.seat_name(side)} (#{side_label(side)}) has offered a draw."
+  end
+
   # What the computer's last move cost it, in words:
   #
   #   "Computer (Hard) replied at depth 10 in 0.81 s"

@@ -1,0 +1,24 @@
+<%# One broadcast: the whole state of the match as one message, rendered for one audience.
+
+    Called by MatchBroadcasts#broadcast_state! once per audience (the Red seat, the White seat
+    and everybody else) after every accepted action, and delivered to that audience's signed
+    Turbo stream. The acting browser's own response carries the same fragments from
+    matches/update.turbo_stream.erb, so nothing here is the only path to anything.
+
+    All five fragments go in one message rather than five, so a page can never show a board
+    from one action beside a move list from another.
+
+    Rendered outside a request: no Current, no session, no cookies, no request helpers, and no
+    _url helpers (there is no host). Everything comes from the three locals. The invite panel
+    is rendered without a link on purpose, which empties it: a match that has just been joined
+    or cancelled has no invite left to show, and those are the only broadcasts a waiting match
+    ever makes. %>
+<%= turbo_stream.replace Match::BOARD_ID, partial: "matches/board",
+      locals: { match: match, game: game, selected: nil, seats: seats } %>
+<%= turbo_stream.replace Match::STATUS_ID, partial: "matches/status",
+      locals: { match: match, game: game } %>
+<%= turbo_stream.replace Match::INVITE_ID, partial: "matches/invite",
+      locals: { match: match, seats: seats, link: nil } %>
+<%= turbo_stream.replace Match::MOVES_ID, partial: "matches/moves", locals: { game: game } %>
+<%= turbo_stream.replace Match::CONTROLS_ID, partial: "matches/controls",
+      locals: { match: match, game: game, seats: seats } %>

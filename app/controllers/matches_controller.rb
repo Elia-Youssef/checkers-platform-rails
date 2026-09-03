@@ -13,9 +13,7 @@ class MatchesController < ApplicationController
     @selected = selected_square
   end
 
-  # Start a game. Hot-seat and versus the computer exist in this build step; online gets its
-  # own path in the phase that adds it, and this refuses to invent a match for a mode that
-  # cannot be played yet.
+  # Start a game: hot-seat, against the computer, or online.
   #
   # Every parameter is checked before a row is created, and a parameter that is not one of the
   # pinned words sends the visitor back to the home page with the reason. Nothing here can
@@ -25,6 +23,7 @@ class MatchesController < ApplicationController
     case params[:mode]
     when "hotseat" then create_hotseat
     when "ai" then create_ai
+    when "online" then create_online
     else
       redirect_to root_path, status: :see_other, alert: "That way to play is not available yet."
     end
@@ -57,5 +56,33 @@ class MatchesController < ApplicationController
                            user: Current.user, guest_key: Current.guest_key)
       match.play_computer_reply! if match.computer_to_move?
       redirect_to match_path(match), status: :see_other
+    end
+
+    # An online match. Both seats hold signed-in users (TASK-BRIEF 1.5), so a visitor without
+    # an account is sent to sign in and comes back to the home page, where the create form is;
+    # a guest key never takes an online seat, which the model refuses as well.
+    #
+    # The colour is Red, White or random, and random is resolved here and now rather than at
+    # the join, so the creator's own page shows which colour they are while they wait.
+    def create_online
+      return sign_in_first unless Current.user
+
+      colour = params[:colour].to_s
+      unless Match::SIDES.include?(colour) || colour == "random"
+        redirect_to root_path, status: :see_other,
+          alert: "Choose Red, White or random for an online match." and return
+      end
+
+      match = Match.open_online(creator: Current.user, colour: colour)
+      redirect_to match_path(match), status: :see_other
+    end
+
+    # Sign in, then back to the home page. The POST this arrived on cannot be replayed after
+    # signing in (there is no GET /matches to come back to), so the return address is the page
+    # that holds the form.
+    def sign_in_first
+      session[:return_to_after_authenticating] = root_url
+      redirect_to new_session_path, status: :see_other,
+        alert: "Sign in to create an online match: both seats need an account."
     end
 end

@@ -1,12 +1,20 @@
 <%# The answer to an accepted or refused action for a browser with JavaScript on: the same
-    four named fragments the match page is built from, replaced in place, plus the flash zone
-    so a refusal is visible without a page load. Phase 6 broadcasts these very fragments to
-    the other player, which is why their DOM ids are constants on Match. %>
+    named fragments the match page is built from, replaced in place, plus the flash zone so a
+    refusal is visible without a page load.
+
+    This is the acting browser's own response. The other browsers watching the match get the
+    same fragments over Action Cable from matches/_live.turbo_stream.erb, rendered once per
+    audience; the two templates replace the same ids, which is why those ids are constants on
+    Match. The invite panel is here as well, so the creator's link disappears from their own
+    page the moment they cancel. %>
 <%= turbo_stream.replace Match::BOARD_ID, partial: "matches/board",
-      locals: { match: @match, game: @game, selected: @selected, viewer: @viewer } %>
+      locals: { match: @match, game: @game, selected: @selected, seats: @seats } %>
 <%= turbo_stream.replace Match::STATUS_ID, partial: "matches/status",
       locals: { match: @match, game: @game } %>
+<%= turbo_stream.replace Match::INVITE_ID, partial: "matches/invite",
+      locals: { match: @match, seats: @seats,
+                link: (join_url(@match.invite_token) if @match.invite_open?) } %>
 <%= turbo_stream.replace Match::MOVES_ID, partial: "matches/moves", locals: { game: @game } %>
 <%= turbo_stream.replace Match::CONTROLS_ID, partial: "matches/controls",
-      locals: { match: @match, game: @game, viewer: @viewer } %>
+      locals: { match: @match, game: @game, seats: @seats } %>
 <%= turbo_stream.replace "flashes", partial: "layouts/flash_zone" %>

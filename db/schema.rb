@@ -10,12 +10,13 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_02_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_02_160000) do
   create_table "matches", force: :cascade do |t|
     t.string "ai_level"
     t.datetime "created_at", null: false
     t.string "draw_offered_by"
     t.string "invite_token"
+    t.datetime "invite_token_used_at"
     t.string "mode", null: false
     t.string "pending_path"
     t.string "position", null: false
@@ -23,6 +24,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_02_110000) do
     t.string "reason"
     t.string "red_guest_key"
     t.integer "red_user_id"
+    t.integer "rematch_match_id"
     t.string "result"
     t.string "side_to_move", default: "red", null: false
     t.string "start_position", null: false
@@ -33,6 +35,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_02_110000) do
     t.index ["invite_token"], name: "index_matches_on_invite_token", unique: true
     t.index ["red_guest_key"], name: "index_matches_on_red_guest_key"
     t.index ["red_user_id"], name: "index_matches_on_red_user_id"
+    t.index ["rematch_match_id"], name: "index_matches_on_rematch_match_id"
     t.index ["status", "updated_at"], name: "index_matches_on_status_and_updated_at"
     t.index ["white_guest_key"], name: "index_matches_on_white_guest_key"
     t.index ["white_user_id"], name: "index_matches_on_white_user_id"
@@ -75,6 +78,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_02_110000) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "matches", "matches", column: "rematch_match_id"
   add_foreign_key "matches", "users", column: "red_user_id"
   add_foreign_key "matches", "users", column: "white_user_id"
   add_foreign_key "moves", "matches"

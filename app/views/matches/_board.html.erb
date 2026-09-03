@@ -15,10 +15,12 @@
 %>
 <%
   targets_by_square = game.targets_by_square
-  # Playable means: this visitor holds a seat, the match is running (not waiting for an
-  # opponent and not over), and the engine still has moves. A waiting match renders the same
-  # board with every square switched off, so no control on the page is dead.
-  playable = !viewer && match.active? && !game.finished?
+  # Playable means: this visitor holds the seat of the side to move, the match is running (not
+  # waiting for an opponent and not over), and the engine still has moves. A waiting match, a
+  # finished one and the opponent's turn in an online match all render the same board with
+  # every square switched off, so no control on the page is dead and no click can be refused.
+  # In hot-seat one browser holds both seats, so it is playable on both sides' turns.
+  playable = match.playable_by?(seats) && !game.finished?
   selection =
     if !playable
       nil
