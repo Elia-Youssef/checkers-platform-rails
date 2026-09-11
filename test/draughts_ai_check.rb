@@ -26,11 +26,13 @@
 #      a game count. CONCEPT.md 6.2 expects Hard not to lose to Medium. It is behind the
 #      flag because every game is a minute or more of real search.
 #
-# YJIT: Rails 8.1 turns YJIT on through config.load_defaults 8.1 only outside development
-# and test (railties sets config.yjit = !Rails.env.local?), so the development container
-# this is measured in runs without it. Section 2 therefore reports both, first as the
-# process was launched and then after calling RubyVM::YJIT.enable, and the pass or fail
-# applies to both.
+# YJIT: this is a plain Ruby process, so it runs whatever the command line asked for.
+# config/ci.rb and .github/workflows/ci.yml both launch it as `ruby --yjit`, because the
+# timings below were measured with YJIT on and because Hard's floor deadline now decides a
+# depth as well as a time; launched as plain `ruby` it starts without YJIT, which is what
+# Rails 8.1 leaves in development and test (railties sets config.yjit = !Rails.env.local?).
+# Section 2 therefore reports both, first as the process was launched and then after calling
+# RubyVM::YJIT.enable, and the pass or fail applies to both.
 START_TIME = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
 lib = File.expand_path("../lib", __dir__)
@@ -262,7 +264,7 @@ timing_block("YJIT #{yjit_state} (as this process was launched)")
 floor_block("YJIT #{yjit_state}")
 if defined?(RubyVM::YJIT) && RubyVM::YJIT.respond_to?(:enable)
   if RubyVM::YJIT.enabled?
-    puts "  YJIT was already on (RUBY_YJIT_ENABLE is set), so both blocks are the same setting"
+    puts "  YJIT was already on (--yjit or RUBY_YJIT_ENABLE), so both blocks are the same setting"
   else
     RubyVM::YJIT.enable
   end

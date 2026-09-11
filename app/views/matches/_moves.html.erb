@@ -9,7 +9,15 @@
 
     The moves controller scrolls the highlighted entry into the list's own scroll box, here and
     on every Turbo Stream replacement of this fragment. It holds no rule and no data; with
-    JavaScript off the list is the same list and the reader scrolls it by hand. %>
+    JavaScript off the list is the same list and the reader scrolls it by hand.
+
+    The highlight is a colour and a weight for a sighted reader and aria-current for everybody
+    else. Before round 2 it was pixels only, so a screen-reader user stepping through a replay
+    could not tell which entry the board was showing (round-2 audit, finding M1; measured
+    aria: null, label: null on the marked span). aria-current="step" is the value for one entry
+    of an ordered sequence, which is what a ply of a game is, and the two lists mean the same
+    thing by it: on the match page the current step is the move just played, on the replay page
+    it is the ply the board is standing at. %>
 <div id="<%= Match::MOVES_ID %>" class="moves" data-controller="moves">
   <h2 class="moves__heading">Moves</h2>
   <% if pairs.empty? %>
@@ -25,8 +33,11 @@
             <span class="moves__move moves__move--none">...</span>
           <% end %>
           <% [ red, white ].compact.each do |entry| %>
-            <span class="moves__move<%= " moves__move--latest" if entry.ply == highlight %>"
-                  data-ply="<%= entry.ply %>"><%= entry.pdn %></span>
+            <% marked = (entry.ply == highlight) %>
+            <%= tag.span entry.pdn,
+                  class: class_names("moves__move", "moves__move--latest" => marked),
+                  aria: { current: ("step" if marked) },
+                  data: { ply: entry.ply } %>
           <% end %>
         </li>
       <% end %>

@@ -62,12 +62,15 @@ Rails.application.configure do
   # interpreter while the application ships on YJIT everywhere. That matters for one test:
   # ComputerPlayTest's "a Hard reply on the audit's worst reachable position answers inside the
   # budget" asserts RUBRIC item 10's three-second bound on the widest position two audits could
-  # reach. Without YJIT it measured 2.19 to 2.66 s against that bound, a margin of 12 to 27
-  # percent on a host this project has measured drifting 20 percent in a day and 42 percent in
-  # an afternoon; with YJIT it measures about 1.3 s, the same 224,710 nodes at the same depth.
-  # A red run should mean the shipped configuration missed the pin, not that the suite was
-  # timing an interpreter nothing runs. The bound stays at 3.0 s and the test still prints what
-  # it measured.
+  # reach. With YJIT it measures 1.06 to 1.53 s, on 224,710 nodes at the same depth; the same
+  # search on the plain interpreter measured 2.05 to 2.29 s in test/draughts_ai_check.rb
+  # (and 2.19 to 2.66 s for this test when it was first measured, on another host, a margin of
+  # 12 to 27 percent on a host this project has measured drifting 20 percent in a day and 42
+  # percent in an afternoon). A red run should mean the shipped configuration missed the pin,
+  # not that the suite was timing an interpreter nothing runs. Since Hard's floor deadline was
+  # turned on (Draughts::AI::HARD_DEADLINE, 2.5 s), the interpreter also decides the depth this
+  # test asserts: without YJIT that search is two to four tenths of a second from being cut off
+  # at depth 7. The bound stays at 3.0 s and the test still prints what it measured.
   config.yjit = true
 
   # The computer opponent's random source. Every computer move draws uniformly at random

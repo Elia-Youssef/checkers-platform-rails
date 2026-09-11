@@ -381,4 +381,214 @@ class AccessibilityTest < ApplicationSystemTestCase
         "(#{(before - after).round} px) to bring the restored square into view"
     end
   end
+  # ---- round-2 audit, M1: the highlight and the tint are said, not only drawn ---------------
+
+  # The move list marked its latest entry with a colour and a bold weight and nothing else, and
+  # the board tinted two squares whose accessible names never changed, so everything a sighted
+  # reader learns at a glance about "which move was that, and where" was unavailable to a screen
+  # reader. Measured before the fix on the marked entry: {"aria":null,"label":null}; on the two
+  # tinted squares: ["Square 15, Red man", "Square 11, empty"].
+  test "the latest move carries aria-current and the two tinted squares name themselves" do
+    match = start_hotseat
+
+    # Nothing has been played, so nothing is current and no square is an end of anything.
+    assert_no_selector ".moves__move[aria-current]"
+    assert_no_selector "##{Match::BOARD_ID} button[aria-label*='last move']"
+
+    square(11).send_keys(:enter)
+    square(15).send_keys(:space)
+    assert_selector ".moves__move--latest", text: "11-15"
+
+    assert_equal "step", find(".moves__move--latest")["aria-current"]
+    assert_selector ".moves__move[aria-current]", count: 1
+    assert_equal "Square 11, empty, last move from here", square(11)["aria-label"]
+    assert_equal "Square 15, Red man, last move to here", square(15)["aria-label"]
+    assert_selector "##{Match::BOARD_ID} button[aria-label*='last move']", count: 2
+
+    # The next move moves both marks with it, and leaves none behind.
+    square(22).send_keys(:enter)
+    square(18).send_keys(:space)
+    assert_selector ".moves__move--latest", text: "22-18"
+
+    assert_equal "22-18", find(".moves__move[aria-current]").text
+    assert_equal "Square 22, empty, last move from here", square(22)["aria-label"]
+    assert_equal "Square 18, White man, last move to here", square(18)["aria-label"]
+    assert_selector "##{Match::BOARD_ID} button[aria-label*='last move']", count: 2
+    assert_equal 2, match.reload.moves.count
+  end
+
+  # On the replay the marked entry is the whole point of the page: it is the only thing that
+  # says which of a hundred moves the board is showing.
+  test "the replay names the ply it is showing in the move list and on the board" do
+    match = start_hotseat
+    %w[11-15 22-18 15x22 25x18].each do |text|
+      text.split(/[-x]/).map(&:to_i).each_cons(2) { |from, to| match.play_leg!(from, to) }
+    end
+
+    visit match_replay_path(match, ply: 1)
+    assert_equal "11-15", find(".moves__move[aria-current]").text
+    assert_equal "step", find(".moves__move[aria-current]")["aria-current"]
+    replay_square = ->(number) { find("#replay-board button[data-square='#{number}']") }
+    assert_equal "Square 11, empty, last move from here", replay_square.call(11)["aria-label"]
+    assert_equal "Square 15, Red man, last move to here", replay_square.call(15)["aria-label"]
+
+    find("[data-control='next']").click
+    assert_selector ".replay__ply", text: "After ply 2 of 4"
+    assert_equal "22-18", find(".moves__move[aria-current]").text
+    assert_equal "Square 22, empty, last move from here", replay_square.call(22)["aria-label"]
+    assert_equal "Square 18, White man, last move to here", replay_square.call(18)["aria-label"]
+
+    # At ply 0 there is no move to be current and no square is an end of one.
+    find("[data-control='first']").click
+    assert_selector ".replay__ply", text: "The starting position"
+    assert_no_selector ".moves__move[aria-current]"
+    assert_no_selector "#replay-board button[aria-label*='last move']"
+  end
+
+  # ---- round-2 audit, M2: a live update is announced ----------------------------------------
+
+  # Every fragment of a match page is replaced by a Turbo Stream after every action, and the
+  # only live region on the page used to be inside one of them: replacing a live region detaches
+  # it and inserts a new one, which is silence, because the region a screen reader was watching
+  # is gone. Measured before the fix on the opponent's page after a move:
+  # {"statusStillInDocument":false,"anyAriaLive":0}. The region now lives in the layout, outside
+  # every replaced id, and the announcer controller writes the status sentence into it.
+  #
+  # With JavaScript off there is nothing here to do: the whole page reloads and the status
+  # paragraph is read where it stands.
+  def announcement
+    page.evaluate_script("(document.getElementById('live-announcer') || {}).textContent")
+  end
+
+  test "a move is announced in the live region on the opponent's page and a viewer's" do
+    match = Match.open_online(creator: users(:one), colour: "red")
+    invite = nil
+
+    Capybara.using_session(:ada) do
+      sign_in_as users(:one)
+      visit match_path(match)
+      invite = find("##{Match::INVITE_ID} input").value
+      # A page that has just loaded says nothing: a live region is for what changes afterwards.
+      assert_selector "#live-announcer"
+      assert_equal "", announcement
+    end
+
+    Capybara.using_session(:grace) do
+      sign_in_as users(:two)
+      visit invite
+      assert_selector "##{Match::BOARD_ID}"
+    end
+
+    # A guest with no seat, watching the same match.
+    Capybara.using_session(:onlooker) do
+      visit match_path(match)
+      assert_selector ".controls__note", text: "You are viewing this match"
+      assert_equal "", announcement
+    end
+
+    # Mark the region node in both watching browsers. A live region that is replaced rather
+    # than written into is a new node, and a new node is what a screen reader has nothing to
+    # compare against: the mark is how this test can tell the two apart.
+    [ :grace, :onlooker ].each do |session|
+      Capybara.using_session(session) do
+        page.execute_script("document.getElementById('live-announcer').dataset.sentinel = 'kept'")
+      end
+    end
+
+    Capybara.using_session(:ada) do
+      assert_selector ".controls__turn", text: "Your move"
+      square(11).click
+      assert_selector "button[data-square='15'].square--target"
+      square(15).click
+      assert_selector ".moves__move--latest", text: "11-15"
+    end
+
+    # Both of the other browsers were told, over the socket, with no reload.
+    [ :grace, :onlooker ].each do |session|
+      Capybara.using_session(session) do
+        assert_selector ".moves__move--latest", text: "11-15"
+        Timeout.timeout(5) { sleep 0.02 until announcement.to_s.include?("White to move") }
+        assert_equal "White to move", announcement.strip
+        assert_selector "#live-announcer[aria-live='polite']"
+        assert_selector "#live-announcer p", text: "White to move", visible: :all
+        assert_selector "#live-announcer[data-sentinel='kept']",
+          visible: :all
+      end
+    end
+
+    # And the offer of a draw, which changes the status fragment without changing the turn.
+    Capybara.using_session(:grace) do
+      click_button "Offer a draw"
+      assert_selector ".status__draw", text: "has offered a draw"
+    end
+
+    Capybara.using_session(:ada) do
+      assert_selector ".status__draw", text: "has offered a draw"
+      Timeout.timeout(5) { sleep 0.02 until announcement.to_s.include?("offered a draw") }
+      assert_match(/White to move\. .* has offered a draw\./, announcement.strip)
+    end
+  end
+
+  # ---- round-2 audit, M3: forced colours ----------------------------------------------------
+
+  # Windows High Contrast and every other forced-colours mode repaints backgrounds, borders and
+  # shadows in the user's own palette and drops box-shadows, which turned the checkerboard into
+  # a plain white field: both square colours the same, the destination dots invisible and the
+  # last move's ring gone. The board opts out with forced-color-adjust, because on it the
+  # colours are the content.
+  #
+  # The emulation is a DevTools call, so this test proves it took effect before it measures
+  # anything: if matchMedia says the mode is not on, the assertions below would pass on an
+  # ordinary page and prove nothing at all.
+  def emulate_forced_colours(value)
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia",
+      features: [ { "name" => "forced-colors", "value" => value } ])
+  end
+
+  def board_colours
+    page.evaluate_script(<<~JS)
+      (() => {
+        const dark = document.querySelector("button.square:not(.square--last-move)")
+        const light = document.querySelector(".board__cell--light")
+        const dot = document.querySelector(".square--target .square__dot")
+        const marked = document.querySelector(".square--last-move")
+        return {
+          forced: window.matchMedia("(forced-colors: active)").matches,
+          dark: getComputedStyle(dark).backgroundColor,
+          light: getComputedStyle(light).backgroundColor,
+          dot: dot ? getComputedStyle(dot).backgroundColor : null,
+          dotShown: dot ? getComputedStyle(dot).display : null,
+          markedBg: marked ? getComputedStyle(marked).backgroundColor : null,
+          markedRing: marked ? getComputedStyle(marked).boxShadow : null
+        }
+      })()
+    JS
+  end
+
+  test "the board keeps its two square colours, its dots and its tint in forced colours" do
+    match = start_hotseat
+    match.play_leg!(11, 15)
+    visit match_path(match, selected: 22)
+    assert_selector "button[data-square='18'].square--target"
+
+    normal = board_colours
+    assert_equal false, normal["forced"], "forced colours were already on before the emulation"
+
+    emulate_forced_colours("active")
+    forced = board_colours
+    assert_equal true, forced["forced"],
+      "the driver did not apply the forced-colors emulation, so this test proves nothing"
+
+    assert_not_equal forced["dark"], forced["light"],
+      "in forced colours the dark and light squares are both #{forced["dark"]}"
+    assert_equal normal["dark"], forced["dark"]
+    assert_equal normal["light"], forced["light"]
+    assert_equal "block", forced["dotShown"], "the destination dot is not drawn"
+    assert_equal normal["dot"], forced["dot"], "the destination dot lost its colour"
+    assert_equal normal["markedBg"], forced["markedBg"], "the last move's square lost its fill"
+    assert_not_equal "none", forced["markedRing"], "the last move's ring was dropped"
+    assert_equal normal["markedRing"], forced["markedRing"]
+  ensure
+    emulate_forced_colours("none")
+  end
 end

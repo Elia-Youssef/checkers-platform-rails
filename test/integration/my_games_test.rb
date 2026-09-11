@@ -319,7 +319,7 @@ class MyGamesTest < ActionDispatch::IntegrationTest
     def board_state(body)
       page = Nokogiri::HTML(body)
       { board: page.css("##{Match::BOARD_ID} button[data-square]").sort_by { |b| b["data-square"].to_i }
-                   .map { |b| b["aria-label"][/, (.*)\z/, 1] }
+                   .map { |b| b["aria-label"].split(", ")[1] }
                    .map { |what| { "empty" => "-", "Red man" => "r", "White man" => "w",
                                    "Red king" => "R", "White king" => "W" }.fetch(what) }.join,
         moves: page.css(".moves__move").map(&:text).reject { |text| text == "..." },

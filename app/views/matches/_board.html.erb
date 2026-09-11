@@ -35,7 +35,6 @@
   targets = selection ? Array(targets_by_square[selection]) : []
   shown = game.display_position
   last_move = game.last_move
-  tinted = last_move ? [ last_move.origin, last_move.destination ] : []
 %>
 <div id="<%= Match::BOARD_ID %>" class="board-zone" data-controller="board"
      data-action="click->board#click focusin->board#focusIn focusout->board#focusOut"
@@ -48,7 +47,8 @@
       <% else %>
         <%= render "matches/square", match: match, number: number, piece: shown.at(number),
               selection: selection, target: targets.include?(number),
-              tinted: tinted.include?(number), playable: playable, pending: game.pending?,
+              last_move_end: last_move_end(number, last_move&.origin, last_move&.destination),
+              playable: playable, pending: game.pending?,
               own_targets: (targets_by_square[number] if playable) %>
       <% end %>
     <% end %>

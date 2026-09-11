@@ -10,9 +10,9 @@ module Draughts
   #
   #   :easy    one uniformly random legal move, no search at all
   #   :medium  negamax with alpha-beta to a fixed depth of MEDIUM_DEPTH plies
-  #   :hard    iterative deepening: every depth up to HARD_FLOOR is searched whatever the
-  #            clock says, no new depth starts after HARD_BUDGET seconds, and HARD_CAP is
-  #            the deepest iteration there will ever be
+  #   :hard    iterative deepening: every depth up to HARD_FLOOR is searched unless
+  #            HARD_DEADLINE seconds of wall clock pass first, no new depth starts after
+  #            HARD_BUDGET seconds, and HARD_CAP is the deepest iteration there will ever be
   #
   # All three choose uniformly at random among equally scored moves, so games vary, and all
   # three take the random source as an argument. For Easy and Medium a seed is enough to fix
@@ -29,7 +29,8 @@ module Draughts
   # The AI answers inside the request that recorded the human's move, so its budget is the
   # request's budget: HARD_BUDGET plus one deep iteration has to leave room inside the 3.0
   # seconds item 10 measures. HARD_ABORT_AFTER is the backstop for the iteration that turns
-  # out to be much more expensive than the one before it.
+  # out to be much more expensive than the one before it, and HARD_DEADLINE is the backstop
+  # below the depth floor, where HARD_BUDGET and HARD_ABORT_AFTER do not apply.
   #
   # The search sees positions, not histories: it does not know about threefold repetition or
   # the forty-move rule. See Draughts::AI::Search for why, and Evaluation for the endgame
@@ -51,15 +52,27 @@ module Draughts
     HARD_ABORT_AFTER = 2.0
 
     # A stop that also applies at and below the depth floor, and so can return a depth under
-    # HARD_FLOOR. Off by default, because TASK-BRIEF 1.4 pins "always completing at least
-    # depth 8" and that pin is not this module's to change. A caller that would rather bound
-    # the wall clock than the depth passes hard_deadline: seconds to choose; the Choice then
-    # reports the depth that really finished and complete is false. Measured on the worst
-    # position the session-2 audit found (a ten-king endgame reachable by legal play), the
-    # floor now costs 1.32 s without YJIT, so the default needs no such stop; the option
-    # exists so the owner can decide with numbers rather than having to trust one. It is the
-    # fallback for choose's hard_deadline: keyword, and it is read only on the :hard path.
-    HARD_DEADLINE = nil
+    # HARD_FLOOR. On since 2026-09-11 by the owner's decision (OPEN-DEFECTS.md item 1): the
+    # search stops deepening at this wall time even below the floor, gives back the best move
+    # of the deepest iteration that did finish, reports that depth and sets complete false.
+    # It is the one deliberate deviation from TASK-BRIEF 1.4's "always completing at least
+    # depth 8", taken so that the other pin, a whole request inside 3.0 seconds, holds on
+    # every legal position and not merely on every position anyone has measured: each extra
+    # king widens the tree, so a board slower than today's worst always exists.
+    #
+    # What it does not change. The floor is still unconditional on every position that
+    # finishes depth 8 inside the deadline, which is every position measured on this machine:
+    # over sixteen requests each through the running application, the widest board two audits
+    # could reach by legal play searched depth 8 in 1.14 to 1.41 s (ten kings) and the same
+    # board plus one more king in 1.90 to 2.21 s, so the stop stayed 0.29 s or more away from
+    # firing and both answered at depth 8. HARD_CAP still bounds the deepest iteration.
+    # HARD_BUDGET and HARD_ABORT_AFTER still govern above the floor, and HARD_ABORT_AFTER,
+    # being the earlier of the two stops there, is still what ends a deep iteration: this
+    # number is reached only below the floor. The request around the search cost 0.06 to
+    # 0.31 s in those measurements, so even a search that does run into this stop leaves the
+    # 3.0 second request pin its margin. It is the fallback for choose's hard_deadline:
+    # keyword, and it is read only on the :hard path.
+    HARD_DEADLINE = 2.5
 
     # A chosen move and the evidence for it.
     #
@@ -132,9 +145,9 @@ module Draughts
     #   hard_deadline
     #            a wall-clock stop that also applies at and below the depth floor, so it can
     #            return a depth under HARD_FLOOR with complete false. Left out it falls back
-    #            to HARD_DEADLINE, which is nil, so the stop is off. Only :hard deepens
-    #            against a clock, so giving it to :easy or :medium raises ArgumentError
-    #            rather than being accepted and ignored.
+    #            to HARD_DEADLINE, which is 2.5 seconds. Only :hard deepens against a clock,
+    #            so giving it to :easy or :medium raises ArgumentError rather than being
+    #            accepted and ignored.
     #
     # Returns a Choice. Raises Draughts::IllegalMove when there is nothing to choose: a
     # finished game, a game part way through a jump sequence (the browser owns those legs,

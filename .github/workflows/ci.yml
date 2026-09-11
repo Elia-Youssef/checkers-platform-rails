@@ -100,12 +100,17 @@ jobs:
       - name: Run the Draughts engine suite with Rails not loaded
         run: ruby -Ilib -Itest test/draughts_runner.rb
 
+      # --yjit because a GitHub runner starts the plain interpreter, while the check's timing
+      # pins were measured with YJIT on, as development, test and production all run it.
       - name: Check the computer opponent's strength and timing
         run: ruby --yjit -Ilib -Itest test/draughts_ai_check.rb
 
       - name: Run tests
         env:
           RAILS_ENV: test
+          # A hosted runner has two cores, so Minitest would fork two workers and a second
+          # test database for a suite that takes about twenty seconds in the container;
+          # one process is the honest size there.
           PARALLEL_WORKERS: 1
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
@@ -142,6 +147,7 @@ jobs:
       - name: Run System Tests
         env:
           RAILS_ENV: test
+          # Two cores, and one headless browser per worker: one process is the honest size.
           PARALLEL_WORKERS: 1
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0

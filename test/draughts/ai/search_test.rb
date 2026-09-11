@@ -357,7 +357,10 @@ class DraughtsAISearchTest < Minitest::Test
 
     assert_equal 4, result.depth
     assert_predicate result, :complete?
-    assert_nil Draughts::AI::HARD_DEADLINE, "the option ships off"
+    # nil here is this method's own default, which is what the line above passes: the search
+    # keeps the floor unconditional unless a caller names a deadline. Draughts::AI is the
+    # caller that names one, and since 2026-09-11 it names 2.5 s (OPEN-DEFECTS.md item 1).
+    assert_in_delta 2.5, Draughts::AI::HARD_DEADLINE
   end
 
   def test_the_hard_deadline_takes_the_earlier_of_the_two_stops

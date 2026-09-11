@@ -10,17 +10,20 @@
 
   Both labels are written here, on the server, so the board controller never composes a
   sentence: it swaps aria-label between data-label-idle and data-label-target.
+
+  last_move_end is :origin, :destination or nil. It draws the tint and it names the square in
+  words, so the two squares of the last move are readable and not only visible.
 %>
 <%
   own = own_targets.present?
   is_selected = (selection == number)
-  idle_label = square_label(number, piece)
+  idle_label = square_label(number, piece, last_move_end)
   target_label = "#{idle_label}, move here"
   button_options = {
     type: "submit",
     class: class_names("square", "square--target" => target,
                        "square--selected" => is_selected,
-                       "square--last-move" => tinted),
+                       "square--last-move" => last_move_end.present?),
     aria: { label: target ? target_label : idle_label },
     data: { square: number, label_idle: idle_label, label_target: target_label }
   }

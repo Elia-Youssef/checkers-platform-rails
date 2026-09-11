@@ -10,10 +10,6 @@
 # Ignore all environment files.
 /.env*
 
-# Keep deployment credentials and local secret references out of version control.
-/.kamal/secrets
-/config/credentials/*.key
-
 # Ignore all logfiles and tempfiles.
 /log/*
 /tmp/*
@@ -34,17 +30,6 @@
 
 /public/assets
 
-# Ignore local dependency and editor artifacts.
-/vendor/bundle
-/node_modules
-/.ruby-lsp
-.DS_Store
-
-# Public documentation will be added in a future release.
-*.md
-*.markdown
-*.mdx
-
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
@@ -52,3 +37,21 @@
 # production image without the credentials key. It signs cookies, so it belongs beside the
 # master key rather than in a commit.
 /checkers.secret
+
+# Ignore the Kamal secrets file, which resolves real values at deploy time.
+/.kamal/secrets
+
+# Ignore the per-environment credentials keys, as the single master key above is ignored.
+/config/credentials/*.key
+
+# Ignore gems installed into the working copy by `bundle install --path`.
+/vendor/bundle
+
+# Ignore a node_modules directory, which nothing here needs: there is no Node build step.
+/node_modules
+
+# Ignore the Ruby LSP's per-checkout index.
+/.ruby-lsp
+
+# Ignore the directory file macOS writes into any folder it looks at.
+.DS_Store

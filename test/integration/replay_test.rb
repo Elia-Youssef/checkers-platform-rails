@@ -62,8 +62,11 @@ class ReplayTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal @rows[0].position_after, css_position
-    assert_equal "Square 11, empty", board_squares[11]
-    assert_equal "Square 15, Red man", board_squares[15]
+    # The replayed board names the two squares of the move that led here, exactly as the live
+    # board does, so the tint is not the only way to know which move is on screen (round-2
+    # audit, M1).
+    assert_equal "Square 11, empty, last move from here", board_squares[11]
+    assert_equal "Square 15, Red man, last move to here", board_squares[15]
     assert_equal [ 11, 15 ], tinted_squares
     assert_equal [ "11-15" ], highlighted_moves
     assert_select ".replay__ply", "After ply 1 of 4."
@@ -152,6 +155,26 @@ class ReplayTest < ActionDispatch::IntegrationTest
       assert_equal "SPAN", control(name).name.upcase, "#{name} in a match with no moves"
     end
     assert_select ".replay__turn", /No move has been played/
+  end
+
+  # The ply sentence used to be built with one pluralize call, which read "before any of the
+  # 0 moves" in a match with none and "before any of the 1 move" in a match with one (round-2
+  # audit, finding L2). Both are ordinary: a replay is offered for every match, and every match
+  # is empty for one ply and one move long for the next.
+  test "the ply sentence reads at both ends of a very short game" do
+    empty = Match.open_hotseat(guest_key: SecureRandom.urlsafe_base64(24))
+    get match_replay_path(empty)
+    assert_select ".replay__ply", "The starting position."
+
+    one = Match.open_hotseat(guest_key: SecureRandom.urlsafe_base64(24))
+    play(one, "11-15")
+    get match_replay_path(one)
+    assert_select ".replay__ply", "The starting position, before the only move."
+    get match_replay_path(one, ply: 1)
+    assert_select ".replay__ply", "After ply 1 of 1."
+
+    get match_replay_path(@match)
+    assert_select ".replay__ply", "The starting position, before any of the 4 moves."
   end
 
   # ---- who may open it, and what it is not ------------------------------------------------

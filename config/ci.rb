@@ -28,7 +28,14 @@ CI.run do
   # 7, 49, 302, 1469, 7361, or if the suite takes longer than 2.0 seconds.
   step "Tests: Engine, Rails-free", "ruby", "-Ilib", "-Itest", "test/draughts_runner.rb"
   # Strength and timing of the computer opponent, too slow for the suite above (about 15 s).
-  step "Tests: AI check", "ruby", "-Ilib", "-Itest", "test/draughts_ai_check.rb"
+  #
+  # --yjit because the check's timing pins were measured with YJIT on, which is what development,
+  # test and production all run, and because Hard's floor deadline (Draughts::AI::HARD_DEADLINE,
+  # 2.5 s) now decides a depth as well as a time: on the plain interpreter the widest king
+  # position's search measured 2.05 to 2.29 s against that stop, so a slow afternoon would fail
+  # this step on a reported depth of 7 rather than on a clock. The same flag is on the same step
+  # in .github/workflows/ci.yml.
+  step "Tests: AI check", "ruby", "--yjit", "-Ilib", "-Itest", "test/draughts_ai_check.rb"
 
   step "Tests: Rails", "bin/rails test"
   step "Tests: System", "bin/rails test:system"

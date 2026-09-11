@@ -8,6 +8,14 @@ require "test_helper"
 # The only image files allowed anywhere are the three favicons the Rails generator put in
 # public/ (icon.png, icon.svg and the apple-touch-icon, which is icon.png again). They are the
 # browser tab, not the game.
+#
+# WHAT THIS TEST COVERS, exactly. It fails for an image file under app/ or public/ beyond those
+# favicons, and for any reference to an image from a view, a helper, a stylesheet or a script.
+# It does not read docs/, which holds the screenshots README.md shows on GitHub: those are
+# documentation of the running application, nothing in the application references them, and the
+# production image never carries them (.dockerignore excludes /docs). The exclusion is one
+# directory in one test, the last one below; the other five are unchanged, so a screenshot
+# copied into app/assets/images or named from a view still fails here.
 class NoImageFilesTest < ActiveSupport::TestCase
   ROOT = Rails.root
   IMAGE_EXTENSIONS = %w[ png jpg jpeg gif webp bmp ico tiff avif svg ].freeze
@@ -103,13 +111,18 @@ class NoImageFilesTest < ActiveSupport::TestCase
       "app/assets/images should hold only .keep, it holds #{entries.inspect}"
   end
 
+  # docs/ is excluded here and only here: it holds the screenshots README.md shows on GitHub,
+  # which document the application rather than belong to it. Nothing under app/, public/ or
+  # config/ may reference them (the four tests above still read every view, helper, stylesheet
+  # and script), and .dockerignore keeps the directory out of the production image. The rest of
+  # the list is not this application at all: generated files, and gems a checkout may have
+  # installed into vendor/bundle, which ship their own images and are ignored by git.
+  SCANNED_OUT = %w[ /tmp/ /log/ /storage/ /node_modules/ /vendor/bundle/ /docs/ ].freeze
+
   test "the only image files in the tree are the generated favicons" do
     pattern = ROOT.join("**/*.{#{IMAGE_EXTENSIONS.join(",")}}").to_s
     found = Dir.glob(pattern, File::FNM_CASEFOLD)
-      .reject do |path|
-        path.include?("/tmp/") || path.include?("/log/") || path.include?("/storage/") ||
-          path.include?("/node_modules/") || path.include?("/vendor/bundle/")
-      end
+      .reject { |path| SCANNED_OUT.any? { |part| path.include?(part) } }
       .map { |path| relative(path) }
       .sort
 
