@@ -41,6 +41,10 @@
 # in the development image.
 /test
 
+# Ignore the documentation and its screenshots: README.md shows them on GitHub and the running
+# application references none of them, so the image carries no image file at all.
+/docs
+
 # Ignore CI service files.
 /.github
 
