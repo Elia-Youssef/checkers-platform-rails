@@ -70,6 +70,24 @@ Rails.application.configure do
   # Suppress logger output for asset requests.
   config.assets.quiet = true
 
+  # Rotate the development log, and keep a few small files instead of two enormous ones.
+  #
+  # Rails 8.1's own default for a local environment is config.log_file_size = 100 MB, applied
+  # by the bootstrap as Logger.new(file, 1, 100.megabytes): one rotation kept, so a stack left
+  # running fills 200 MB before anything is discarded. Measured after one long audit session:
+  # log/development.log at 85 MB with a 100 MB development.log.0 beside it, 190 MB in the
+  # checkers-ruby_log volume (round-2 audit, finding L6). Nothing breaks, but a reviewer who
+  # leaves the stack up for a demonstration pays that in disk for debug-level SQL.
+  #
+  # Five 8 MB files is 40 MB at the ceiling and still holds a whole session of play, and this
+  # is the same logger Rails would have built, with a different rotation policy: the same
+  # config.default_log_file, the same formatter, and config.log_level applied to it afterwards
+  # by the same initializer. Development only. The test log is small and short-lived, and
+  # production logs to STDOUT for the container runtime to collect.
+  development_log = ActiveSupport::Logger.new(config.default_log_file, 5, 8.megabytes)
+  development_log.formatter = config.log_formatter
+  config.logger = ActiveSupport::TaggedLogging.new(development_log)
+
   # Raises error for missing translations.
   # config.i18n.raise_on_missing_translations = true
 
@@ -94,9 +112,11 @@ Rails.application.configure do
   # the plain interpreter while production runs YJIT. That makes every development timing
   # measurement a measurement of a slower machine than the one the application ships on, and
   # the computer opponent is the one part of this application where that matters: the
-  # depth-8 floor on the audits' worst reachable position takes 2.53 s of pure Ruby without
-  # YJIT and 1.27 s with it, on the same 224,800 nodes. Item 10's three-second budget is
-  # measured in development, so development should measure what production does.
+  # depth-8 floor on the audits' worst reachable position takes 2.06 s of pure Ruby without
+  # YJIT and 1.07 to 1.17 s with it, on the same 224,815 nodes (2.53 s and 1.27 s when this
+  # was first measured, on another host; the ratio is the part that holds, not the seconds).
+  # Item 10's three-second budget is measured in development, so development should measure
+  # what production does.
   config.yjit = true
 
   # Watch the source tree from a background thread instead of from inside every request.

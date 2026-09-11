@@ -43,7 +43,13 @@
   --surface: #f7f4ef;
   --surface-raised: #ffffff;
   --surface-sunken: #ece6dc;
-  --border: #d5cdc0;
+  /* The edge of every panel, card, field and flash. A white panel on this page is 1.10:1, so
+     the edge is the only thing that separates them and it has to be seen: this was #d5cdc0 at
+     1.44:1 against the page, which the round-2 audit measured as no separation at all (finding
+     L6). Now 3.42:1 against the page, 3.75:1 against a raised panel and 3.02:1 against a sunken
+     one, so it clears 3:1 on every surface it is drawn on, which is also what a text input's
+     boundary owes a low-vision reader. It is never a text colour. */
+  --border: #8c8371;
   --ink: #23201c;
   --ink-muted: #5d564c;
   --accent: #1f5f4b;
@@ -145,6 +151,22 @@ a {
   top: var(--space-3);
 }
 
+/* Read by a screen reader, never drawn. Used by the live region in the layout, which is fed
+   the status sentence after every Turbo Stream update (see announcer_controller.js).
+   display: none would take it out of the accessibility tree with the pixels, so the element is
+   clipped to nothing instead and keeps its text readable to assistive technology. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Masthead ---------------------------------------------------------------- */
 
 .masthead {
@@ -187,11 +209,6 @@ a {
 
 .masthead__link:hover {
   border-bottom-color: currentColor;
-}
-
-.masthead__link--pending {
-  color: rgba(230, 210, 172, 0.6);
-  cursor: default;
 }
 
 .masthead__identity {

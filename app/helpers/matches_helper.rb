@@ -13,8 +13,31 @@ module MatchesHelper
 
   # "Square 11, Red man", "Square 5, White king", "Square 15, empty": the accessible name of a
   # board button, which names the square and what is on it.
-  def square_label(number, piece)
-    "Square #{number}, #{piece_name(piece)}"
+  #
+  # The two squares of the last move say so as well: "Square 11, empty, last move from here",
+  # "Square 15, Red man, last move to here". Before round 2 the last move was a tint and nothing
+  # more, so a screen-reader user was told which move was latest in the list but never which two
+  # squares it had been played between (round-2 audit, finding M1). The phrase is part of the
+  # name rather than a description because the board controller swaps the whole name between the
+  # two the server wrote (data-label-idle and data-label-target) and a description would have to
+  # be swapped with it.
+  def square_label(number, piece, last_move_end = nil)
+    label = "Square #{number}, #{piece_name(piece)}"
+
+    case last_move_end
+    when :origin then "#{label}, last move from here"
+    when :destination then "#{label}, last move to here"
+    else label
+    end
+  end
+
+  # Which end of the last move a square is, or nil for the other thirty. Destination wins when
+  # a jump sequence ends on the square it started from, because that is where the piece is.
+  def last_move_end(number, origin, destination)
+    return :destination if destination && number == destination
+    return :origin if origin && number == origin
+
+    nil
   end
 
   def piece_name(piece)
@@ -158,12 +181,21 @@ module MatchesHelper
 
   # ---- replay -----------------------------------------------------------------------------
 
-  # "The starting position, before any move" or "After ply 7 of 103", which is the ply and the
-  # total in words.
+  # "The starting position, before any of the 103 moves" or "After ply 7 of 103", which is the
+  # ply and the total in words.
+  #
+  # The two ends were ungrammatical while this was one `pluralize` call: a match with no moves
+  # read "before any of the 0 moves" and a match with one read "before any of the 1 move"
+  # (round-2 audit, finding L2). Both are reachable, because a replay is offered for every
+  # match and every match is empty for one ply.
   def replay_ply_sentence(ply, total)
-    return "The starting position, before any of the #{pluralize(total, "move")}" if ply.zero?
+    return "After ply #{ply} of #{total}" unless ply.zero?
 
-    "After ply #{ply} of #{total}"
+    case total
+    when 0 then "The starting position"
+    when 1 then "The starting position, before the only move"
+    else "The starting position, before any of the #{total} moves"
+    end
   end
 
   private

@@ -17,7 +17,8 @@
         <div class="board__cell board__cell--light" aria-hidden="true"></div>
       <% else %>
         <%= render "matches/square", match: match, number: number, piece: position.at(number),
-              selection: nil, target: false, tinted: tinted.include?(number),
+              selection: nil, target: false,
+              last_move_end: last_move_end(number, tinted.first, tinted.last),
               playable: false, pending: false, own_targets: nil %>
       <% end %>
     <% end %>

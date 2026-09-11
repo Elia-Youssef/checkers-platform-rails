@@ -26,8 +26,10 @@ RUN apt-get update -qq && \
 # VM lock per process, and a Hard computer move is a pure-Ruby search of one to two seconds,
 # so a single-process server answers nothing else while it runs (measured at 2.1 to 2.2 s of
 # waiting for requests that take 0.02 s on an idle server). Two Puma workers keep one process
-# free. Override it at run time (docker run -e WEB_CONCURRENCY=4) on a larger host; 1 restores
-# the generated single-process behaviour.
+# free. Override it at run time (docker run -e WEB_CONCURRENCY=4) on a larger host. Puma reads
+# the variable itself and config/puma.rb never calls the workers directive, so the way back to
+# a single process is WEB_CONCURRENCY=0, or an empty value, and not WEB_CONCURRENCY=1: Puma
+# reads 1 as cluster mode with one worker and warns that this is usually a misconfiguration.
 ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \

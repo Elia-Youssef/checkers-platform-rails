@@ -8,8 +8,8 @@ vendor/* linguist-vendored
 config/credentials/*.yml.enc diff=rails_credentials
 config/credentials.yml.enc diff=rails_credentials
 
-# Line endings are LF everywhere: the application runs inside a Linux container, and a clone
-# on Windows must not turn bin/ scripts or the Dockerfiles into CRLF files.
+# Line endings are LF everywhere: the application runs inside a Linux container, and a clone on
+# Windows must not turn the bin/ scripts or the Dockerfiles into CRLF files that will not run.
 * text=auto eol=lf
 *.png binary
 *.ico binary

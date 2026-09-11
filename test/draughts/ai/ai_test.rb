@@ -41,20 +41,39 @@ class DraughtsAITest < Minitest::Test
     assert_in_delta 1.5, AI::HARD_BUDGET
     assert_operator AI::HARD_ABORT_AFTER, :>, AI::HARD_BUDGET
     assert_operator AI::HARD_ABORT_AFTER, :<, 3.0
-    assert_nil AI::HARD_DEADLINE, "the stop that can break the depth floor ships off"
+    # The one number that is not the brief's: the floor deadline, on since 2026-09-11 by the
+    # owner's decision (OPEN-DEFECTS.md item 1). It has to sit above HARD_ABORT_AFTER, or it
+    # would be the stop above the floor too, and below the 3.0 s the request is held to.
+    assert_in_delta 2.5, AI::HARD_DEADLINE
+    assert_operator AI::HARD_DEADLINE, :>, AI::HARD_ABORT_AFTER
+    assert_operator AI::HARD_DEADLINE, :<, 3.0
   end
 
-  def test_the_optional_hard_deadline_can_bound_the_clock_instead_of_the_depth
-    # Off by default: the floor wins however late the injected clock says it is. Three
-    # kings, so the whole depth-8 floor costs a few milliseconds.
+  def test_the_hard_deadline_bounds_the_clock_instead_of_the_depth_by_default
+    # The floor still wins on a position that finishes it inside HARD_DEADLINE, which is
+    # every position the application reaches. Time stands still on this clock, so the
+    # deadline cannot fire, and the budget is spent before the first node, so the floor is
+    # the only thing left to stop the search: it stops it at exactly HARD_FLOOR. Three
+    # kings, so the whole depth-8 floor costs a few milliseconds of real time as well.
     tiny = Position.build({ 4 => "R", 8 => "R", 29 => "W" }, Side::RED)
-    floored = AI.choose(tiny, level: :hard, random: Random.new(1),
-                        clock: FakeClock.new(step: 1000.0))
+    floored = AI.choose(tiny, level: :hard, random: Random.new(1), budget: 0.0,
+                        clock: FakeClock.new)
 
     assert_equal AI::HARD_FLOOR, floored.depth
     assert_predicate floored, :complete?
 
-    # Asked for by name: the clock wins and the Choice says so, with a real move.
+    # On by default since 2026-09-11: this clock is a thousand seconds later every reading,
+    # so the deadline is passed long before the floor is reached, and the search gives back
+    # the deepest iteration that finished rather than the eighth.
+    deadlined = AI.choose(tiny, level: :hard, random: Random.new(1),
+                          clock: FakeClock.new(step: 1000.0))
+
+    assert_operator deadlined.depth, :<, AI::HARD_FLOOR
+    assert_operator deadlined.depth, :>=, 1
+    refute_predicate deadlined, :complete?
+    assert_includes Rules.legal_moves(tiny), deadlined.move
+
+    # Asked for by name: a caller's own number is taken instead of the constant.
     bounded = AI.choose(Position.start, level: :hard, random: Random.new(1),
                         hard_deadline: 6.0, clock: FakeClock.new(step: 1.0))
 
@@ -218,10 +237,14 @@ class DraughtsAITest < Minitest::Test
   def test_hard_honours_the_floor_the_cap_and_the_budget_on_an_injected_clock
     position = Position.build({ 1 => "r", 15 => "r", 23 => "w", 32 => "w" }, Side::RED)
 
+    # hard_deadline is pushed out of reach on purpose: this is the floor against the budget
+    # and against abort_after, and the injected clock is a hundred seconds a reading, which
+    # would otherwise trip HARD_DEADLINE before the floor and measure that instead.
     floored = AI.choose(position, level: :hard, random: Random.new(1), floor: 5, cap: 7,
-                        budget: 0.5, abort_after: 0.1, clock: FakeClock.new(step: 100.0))
+                        budget: 0.5, abort_after: 0.1, hard_deadline: 1e9,
+                        clock: FakeClock.new(step: 100.0))
 
-    assert_equal 5, floored.depth, "the floor is searched however late the clock says it is"
+    assert_equal 5, floored.depth, "the floor beats the budget however late the clock says it is"
     assert_predicate floored, :complete?
 
     capped = AI.choose(position, level: :hard, random: Random.new(1), floor: 1, cap: 4,
@@ -232,8 +255,11 @@ class DraughtsAITest < Minitest::Test
   end
 
   def test_hard_gives_back_the_last_finished_depth_when_the_deadline_bites
+    # abort_after is the stop under test, so HARD_DEADLINE is pushed out of reach: at 2.5 it
+    # is the earlier of the two on this clock and the growth estimate would decline to start
+    # depth 2 at all, which is a different behaviour from the one this test is about.
     choice = AI.choose(Position.start, level: :hard, random: Random.new(1), floor: 1,
-                       cap: 9, budget: 1e9, abort_after: 7.0,
+                       cap: 9, budget: 1e9, abort_after: 7.0, hard_deadline: 1e9,
                        clock: FakeClock.new(step: 1.0))
 
     assert_equal 1, choice.depth

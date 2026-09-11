@@ -479,3 +479,38 @@
     max-height: 12rem;
   }
 }
+
+/* Forced colours (Windows High Contrast and the rest) ----------------------- */
+
+/* Forced-colours mode repaints every background and border in the user's own two or three
+   colours and drops box-shadows entirely. On this page that turned the checkerboard into a
+   plain white field: both square colours came out the same, the destination dots disappeared
+   into it, the last move's ring and the focus halo (both box-shadows) went with them, and the
+   swatches beside the players' names were black for Red and for White alike. Measured with
+   Emulation.setEmulatedMedia forced-colors: active, before this block: dark square
+   rgb(255,255,255), light square rgb(255,255,255), dot rgb(255,255,255), against
+   rgb(63,42,28), rgb(230,210,172) and rgb(127,212,162) normally (round-2 audit, finding M3).
+
+   The board is the one part of this application where the colours are the content: which
+   squares are playable, whose piece is whose, which piece is selected and where it may go are
+   all drawn. Two system colours cannot carry that, so the board and the two player swatches
+   keep the palette they were designed in and everything else on the page (text, panels,
+   buttons, links, flashes, the masthead) still takes the user's colours. That is the case
+   forced-color-adjust exists for.
+
+   Nothing here is the only way to read the board in any case: whose turn it is is in words,
+   the last move's two squares say so in their accessible names, the move list marks the
+   current ply with aria-current, and a legal destination's name ends ", move here". This block
+   is so that a sighted high-contrast user can see the board as well as read it. */
+@media (forced-colors: active) {
+  .board,
+  .player__swatch {
+    forced-color-adjust: none;
+  }
+
+  /* The frame is the one board colour that is not content: drawn in the user's own text
+     colour it separates the board from whatever the desktop is, black or white. */
+  .board {
+    border-color: CanvasText;
+  }
+}

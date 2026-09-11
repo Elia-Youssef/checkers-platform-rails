@@ -64,5 +64,21 @@
     <footer class="colophon">
       <p>English draughts. The rules live in a pure-Ruby engine; the pages are Rails.</p>
     </footer>
+
+    <%# The one live region on the page, and the reason it is out here.
+
+        Every accepted action answers with a Turbo Stream that replaces the whole status
+        fragment, and that fragment used to hold the only role="status" paragraph on the page.
+        Replacing a live region detaches it and inserts a new one, and a region that did not
+        exist before the change is a region a screen reader has nothing to compare against, so
+        the opponent and every viewer were told nothing when a move arrived (round-2 audit,
+        finding M2; measured statusStillInDocument false, anyAriaLive 0). This element is
+        outside every id a stream replaces, so it survives the update, and the announcer
+        controller on the status fragment writes the new status sentence into it. It is empty in
+        the server's HTML on purpose: a region is announced for what is put into it after the
+        page settles, not for what it was born with, and with JavaScript off there is no update
+        to announce and the status paragraph is simply read where it stands. %>
+    <div id="live-announcer" class="visually-hidden" role="status" aria-live="polite"
+         aria-atomic="true"></div>
   </body>
 </html>

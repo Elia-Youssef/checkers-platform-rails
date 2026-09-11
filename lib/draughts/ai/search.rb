@@ -233,11 +233,14 @@ module Draughts
       # search is never shallow.
       #
       # hard_deadline is the one thing here that can break the depth floor, which is why it
-      # is nil by default and why Draughts::AI does not pass it unless asked. TASK-BRIEF 1.4
-      # pins "always completing at least depth 8", so the floor is unconditional as shipped;
-      # a caller that would rather have a bounded answer than a deep one sets this and gets
-      # the deepest depth that did finish, reported truthfully, with complete false. Depth 1
-      # is never abandoned, so a move always comes back.
+      # is nil by default here: a caller that would rather have a bounded answer than a deep
+      # one asks for it by name and gets the deepest depth that did finish, reported
+      # truthfully, with complete false. Draughts::AI is that caller. It passes
+      # Draughts::AI::HARD_DEADLINE, 2.5 seconds since 2026-09-11, so the application bounds
+      # the wall clock rather than the depth and TASK-BRIEF 1.4's "always completing at least
+      # depth 8" holds for every position that finishes depth 8 inside those 2.5 seconds. See
+      # the constant for what was measured and why. Depth 1 is never abandoned, so a move
+      # always comes back.
       #
       # exact_leaves is false here and true for the fixed-depth search Medium uses: see
       # leaf_value for what the horizon gives up and what it buys.
@@ -301,8 +304,9 @@ module Draughts
       # The wall time at which the iteration about to run must give up, or nil.
       #
       # Depth 1 never has one: it costs a handful of nodes and it is what guarantees that a
-      # move comes back at all. Above the floor, abort_after applies. At and below the
-      # floor, only hard_deadline applies, and it is off unless a caller asks for it.
+      # move comes back at all. Above the floor, the earlier of the two applies, which for
+      # the numbers Draughts::AI ships is abort_after. At and below the floor, only
+      # hard_deadline applies, and it is nil unless a caller names one.
       def self.iteration_deadline(started, depth, floor, abort_after, hard_deadline)
         return nil if depth <= 1
 

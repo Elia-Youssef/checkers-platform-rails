@@ -104,7 +104,10 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
 
     get match_path(match, selected: 15)
     assert_select "button.square--target", 1
-    assert_select "button.square--target[aria-label=?]", "Square 22, empty, move here"
+    # 22 is also where White's man came from, so its name carries both facts: the last move
+    # left it and this selection may move into it.
+    assert_select "button.square--target[aria-label=?]",
+      "Square 22, empty, last move from here, move here"
   end
 
   test "a selected square that is not a square number is ignored rather than an error" do
@@ -131,7 +134,7 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_response 422
     assert_equal before, match.reload.attributes
     assert_equal 2, match.moves.count
-    assert_select "button[aria-label=?]", "Square 18, White man"
+    assert_select "button[aria-label=?]", "Square 18, White man, last move to here"
   end
 
   test "a move for the side not on turn is 422" do
@@ -387,14 +390,18 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
     assert_select ".player__count", text: "11 pieces", count: 1
   end
 
-  test "the last move's origin and destination are the only tinted squares" do
+  test "the last move's origin and destination are the only tinted squares, and say so" do
     match = start_match
     play(match, "11-15")
 
     get match_path(match)
     assert_select "button.square--last-move", 2
-    assert_select "button.square--last-move[aria-label=?]", "Square 11, empty"
-    assert_select "button.square--last-move[aria-label=?]", "Square 15, Red man"
+    # The tint is a colour; the two names are what a screen reader gets (round-2 audit, M1).
+    assert_select "button.square--last-move[aria-label=?]", "Square 11, empty, last move from here"
+    assert_select "button.square--last-move[aria-label=?]",
+      "Square 15, Red man, last move to here"
+    assert_select "button.square--last-move[aria-label*=?]", "last move", count: 2
+    assert_select "button.square[aria-label*=?]", "last move", count: 2
   end
 
   test "a signed-in creator sees their display name in both seats" do
@@ -477,7 +484,7 @@ class HotseatPlayTest < ActionDispatch::IntegrationTest
       assert_select other.html_document.root, ".moves__move", 4
       assert_select other.html_document.root, ".status__headline", text: /Red to move/
       assert_select other.html_document.root,
-        "button[aria-label=?]", "Square 18, White man"
+        "button[aria-label=?]", "Square 18, White man, last move to here"
     end
 
     assert_equal match.position, Match.find(match.id).position

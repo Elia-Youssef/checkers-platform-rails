@@ -82,8 +82,8 @@ class ReplaySystemTest < ApplicationSystemTestCase
     # Next: one ply on. The board, the highlighted move and the tint all follow.
     click_link "Next"
     assert_selector ".replay__ply", text: "After ply 1 of 4"
-    assert_equal "Square 11, empty", piece_on(11)
-    assert_equal "Square 15, Red man", piece_on(15)
+    assert_equal "Square 11, empty, last move from here", piece_on(11)
+    assert_equal "Square 15, Red man, last move to here", piece_on(15)
     assert_equal [ "11-15" ], highlighted
     assert_equal [ 11, 15 ], tinted
 
@@ -91,7 +91,7 @@ class ReplaySystemTest < ApplicationSystemTestCase
     assert_selector ".replay__ply", text: "After ply 2 of 4"
     assert_equal [ "22-18" ], highlighted
     assert_equal [ 18, 22 ], tinted
-    assert_equal "Square 18, White man", piece_on(18)
+    assert_equal "Square 18, White man, last move to here", piece_on(18)
 
     # Last: the final position, with the capture on the board and the two forward controls
     # inert.
@@ -107,7 +107,7 @@ class ReplaySystemTest < ApplicationSystemTestCase
     click_link "Previous"
     assert_selector ".replay__ply", text: "After ply 3 of 4"
     assert_equal [ "15x22" ], highlighted
-    assert_equal "Square 22, Red man", piece_on(22)
+    assert_equal "Square 22, Red man, last move to here", piece_on(22)
 
     # First: all the way back.
     click_link "First"

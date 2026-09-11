@@ -3,8 +3,13 @@
     actually drawn, so part way through a jump sequence they already show the pieces the
     jumping piece has passed over as taken, exactly as the board does. %>
 <% shown = game.display_position %>
-<div id="<%= Match::STATUS_ID %>" class="status">
-  <p class="status__headline<%= " status__headline--result" if match.finished? %>" role="status">
+<%# The announcer controller copies the two sentences marked below into the live region in the
+    layout every time a Turbo Stream replaces this fragment, so a screen reader is told that the
+    opponent moved instead of watching its live region be replaced under it (round-2 audit,
+    finding M2). It writes no sentence of its own: the words are the ones printed here. %>
+<div id="<%= Match::STATUS_ID %>" class="status" data-controller="announcer">
+  <p class="status__headline<%= " status__headline--result" if match.finished? %>" role="status"
+     data-announcer-target="message">
     <% if match.finished? %>
       <%= result_sentence(match) %>
     <% elsif match.waiting? %>
@@ -22,7 +27,7 @@
       here where the opponent, the offerer and any viewer all read the same sentence. The
       Accept and Decline buttons are in the controls fragment, which is per seat. %>
   <% if match.draw_pending? %>
-    <p class="status__draw" role="status"><%= draw_offer_sentence(match) %></p>
+    <p class="status__draw" role="status" data-announcer-target="message"><%= draw_offer_sentence(match) %></p>
   <% end %>
 
   <%# What the computer's search did for its last move, read off the move row rather than
